@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -56,9 +57,25 @@
                         <span>个人中心</span>
                     </a>
                 </nav>
-                <button class="mobile-menu-toggle" id="mobileMenuToggle">
-                    <i class="fas fa-bars"></i>
-                </button>
+                <div class="header-actions">
+                    <div class="user-menu" id="userMenu">
+                        <div class="user-info">
+                            <span id="headerUsername">用户</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="user-menu-dropdown" id="userMenuDropdown">
+                            <a href="#profile" class="dropdown-item">
+                                <i class="fas fa-user"></i> 个人中心
+                            </a>
+                            <a href="#" class="dropdown-item" id="logoutBtn">
+                                <i class="fas fa-sign-out-alt"></i> 退出登录
+                            </a>
+                        </div>
+                    </div>
+                    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </header>

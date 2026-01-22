@@ -272,11 +272,48 @@ function initLogin() {
             // }
             // ====================================
             
+            // ========== 未来接API的位置 ==========
+            // 这里应该调用真实的登录API
+            // 示例：
+            // try {
+            //     const response = await fetch('/api/login', {
+            //         method: 'POST',
+            //         headers: { 'Content-Type': 'application/json' },
+            //         body: JSON.stringify(formData)
+            //     });
+            //     const data = await response.json();
+            //     if (data.success) {
+            //         // 保存登录状态
+            //         localStorage.setItem('isLoggedIn', 'true');
+            //         localStorage.setItem('token', data.token);
+            //         localStorage.setItem('userInfo', JSON.stringify(data.user));
+            //         if (formData.rememberMe) {
+            //             localStorage.setItem('rememberUsername', formData.username);
+            //         }
+            //         // 跳转到主页面
+            //         window.location.href = 'index.html';
+            //     } else {
+            //         showLoginError(data.message || '登录失败');
+            //         btnText.style.display = 'inline-block';
+            //         btnLoader.style.display = 'none';
+            //         loginBtn.disabled = false;
+            //     }
+            // } catch (error) {
+            //     showLoginError('登录失败，请稍后重试');
+            //     btnText.style.display = 'inline-block';
+            //     btnLoader.style.display = 'none';
+            //     loginBtn.disabled = false;
+            // }
+            // ====================================
+            
             // 模拟登录请求（用于演示）
             setTimeout(() => {
                 // 模拟成功登录
                 if (formData.username && formData.password) {
                     // 保存登录状态
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('username', formData.username);
+                    
                     if (formData.rememberMe) {
                         localStorage.setItem('rememberUsername', formData.username);
                     }

@@ -9,14 +9,45 @@
 document.addEventListener('DOMContentLoaded', function() {
     console.log('智能监控系统初始化...');
     
+    // 检查登录状态
+    checkLoginStatus();
+    
     // 初始化导航系统
     initNavigation();
     
     // 初始化移动端菜单
     initMobileMenu();
     
+    // 初始化用户菜单
+    initUserMenu();
+    
+    // 显示用户信息
+    displayUserInfo();
+    
     console.log('系统初始化完成！');
 });
+
+/**
+ * 检查登录状态
+ * 如果未登录，跳转到登录页面
+ */
+function checkLoginStatus() {
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
+    
+    // 如果未登录，跳转到登录页面
+    if (!isLoggedIn || isLoggedIn !== 'true') {
+        // 保存当前页面URL（可选，用于登录后返回）
+        const currentUrl = window.location.href;
+        sessionStorage.setItem('redirectUrl', currentUrl);
+        
+        // 跳转到登录页面
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    // 已登录，可以继续加载页面
+    console.log('用户已登录，继续加载系统...');
+}
 
 /**
  * 初始化导航系统
@@ -160,6 +191,64 @@ function initMobileMenu() {
                 icon.classList.add('fa-bars');
             }
         });
+    }
+}
+
+/**
+ * 初始化用户菜单
+ */
+function initUserMenu() {
+    const userMenu = document.getElementById('userMenu');
+    const userMenuDropdown = document.getElementById('userMenuDropdown');
+    const logoutBtn = document.getElementById('logoutBtn');
+    
+    if (userMenu && userMenuDropdown) {
+        // 点击用户菜单显示/隐藏下拉菜单
+        userMenu.addEventListener('click', function(e) {
+            e.stopPropagation();
+            userMenuDropdown.classList.toggle('active');
+        });
+        
+        // 点击外部关闭菜单
+        document.addEventListener('click', function(e) {
+            if (!userMenu.contains(e.target)) {
+                userMenuDropdown.classList.remove('active');
+            }
+        });
+    }
+    
+    // 退出登录
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            logout();
+        });
+    }
+}
+
+/**
+ * 显示用户信息
+ */
+function displayUserInfo() {
+    const username = localStorage.getItem('username') || '用户';
+    const headerUsername = document.getElementById('headerUsername');
+    
+    if (headerUsername) {
+        headerUsername.textContent = username;
+    }
+}
+
+/**
+ * 退出登录
+ */
+function logout() {
+    if (confirm('确定要退出登录吗？')) {
+        // 清除登录状态
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('token');
+        
+        // 跳转到登录页面
+        window.location.href = 'login.html';
     }
 }
 
