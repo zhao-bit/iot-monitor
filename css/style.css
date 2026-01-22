@@ -1,0 +1,449 @@
+/* ============================================
+   物联网智能监控系统 - 主样式文件
+   包含：全局样式、布局、主题、响应式设计
+   ============================================ */
+
+/* ========== CSS变量定义（主题色） ========== */
+:root {
+    /* 主色调 */
+    --primary-color: #4a90e2;
+    --primary-dark: #357abd;
+    --primary-light: #6ba3e8;
+    
+    /* 辅助色 */
+    --success-color: #52c41a;
+    --warning-color: #faad14;
+    --danger-color: #f5222d;
+    --info-color: #1890ff;
+    
+    /* 背景色（深色科技感主题） */
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    
+    /* 文字颜色 */
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-tertiary: #94a3b8;
+    --text-inverse: #ffffff;
+    
+    /* 边框颜色 */
+    --border-color: #334155;
+    --border-light: #475569;
+    
+    /* 阴影 */
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.16);
+    
+    /* 间距 */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    
+    /* 圆角 */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    
+    /* 过渡动画 */
+    --transition: all 0.3s ease;
+}
+
+/* ========== 全局重置样式 ========== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+        'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f172a 100%);
+    background-attachment: fixed;
+    color: var(--text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+}
+
+/* ========== 容器布局 ========== */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--spacing-md);
+}
+
+/* ========== 顶部导航栏 ========== */
+.header {
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md) 0;
+}
+
+/* Logo样式 */
+.logo {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 1.25rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-decoration: none;
+}
+
+.logo i {
+    font-size: 1.5rem;
+    color: #3b82f6;
+    filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.5));
+}
+
+/* 导航菜单 */
+.nav-menu {
+    display: flex;
+    gap: var(--spacing-xs);
+    flex-wrap: wrap;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) var(--spacing-md);
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    transition: var(--transition);
+    font-size: 0.9rem;
+}
+
+.nav-item:hover {
+    background-color: var(--bg-secondary);
+    color: var(--primary-color);
+}
+
+.nav-item.active {
+    background-color: var(--primary-color);
+    color: var(--text-inverse);
+}
+
+.nav-item i {
+    font-size: 1rem;
+}
+
+/* 移动端菜单切换按钮（汉堡菜单） */
+.mobile-menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: var(--spacing-sm);
+    transition: var(--transition);
+}
+
+.mobile-menu-toggle:hover {
+    color: var(--primary-color);
+}
+
+.mobile-menu-toggle:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* ========== 主内容区域 ========== */
+.main-content {
+    min-height: calc(100vh - 140px);
+    padding: var(--spacing-xl) 0;
+}
+
+/* 板块容器 */
+.section {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.section.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 板块标题 */
+.section-header {
+    margin-bottom: var(--spacing-xl);
+    text-align: center;
+}
+
+.section-header h1 {
+    font-size: 2rem;
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+}
+
+.section-header h1 i {
+    color: var(--primary-color);
+}
+
+.section-description {
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+/* 欢迎页面样式 */
+.welcome-container {
+    text-align: center;
+    padding: var(--spacing-xl) 0;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.welcome-icon {
+    font-size: 4rem;
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-lg);
+    animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.welcome-container h1 {
+    font-size: 2.5rem;
+    margin-bottom: var(--spacing-md);
+    color: var(--text-primary);
+}
+
+.welcome-description {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xl);
+    line-height: 1.8;
+}
+
+.welcome-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.feature-item {
+    padding: var(--spacing-lg);
+    background-color: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+}
+
+.feature-item:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-md);
+}
+
+.feature-item i {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-md);
+}
+
+.feature-item h3 {
+    font-size: 1.2rem;
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-primary);
+}
+
+.feature-item p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.welcome-action {
+    margin-top: var(--spacing-xl);
+    padding: var(--spacing-lg);
+    background-color: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.welcome-action p {
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+/* 占位提示（开发中） */
+.coming-soon {
+    text-align: center;
+    padding: var(--spacing-xl) * 2;
+    color: var(--text-tertiary);
+}
+
+.coming-soon i {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.5;
+}
+
+/* ========== 页脚 ========== */
+.footer {
+    background-color: var(--bg-primary);
+    border-top: 1px solid var(--border-light);
+    padding: var(--spacing-lg) 0;
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 0.875rem;
+}
+
+/* ========== 响应式设计 ========== */
+
+/* 平板设备（768px - 1024px） */
+@media (max-width: 1024px) {
+    .container {
+        padding: 0 var(--spacing-md);
+    }
+    
+    .nav-menu {
+        gap: var(--spacing-xs);
+    }
+    
+    .nav-item span {
+        display: none;
+    }
+    
+    .nav-item {
+        padding: var(--spacing-sm);
+    }
+    
+    .welcome-features {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* 移动设备（小于768px） */
+@media (max-width: 768px) {
+    html {
+        font-size: 14px;
+    }
+    
+    .header-content {
+        flex-wrap: wrap;
+    }
+    
+    /* 显示汉堡菜单按钮 */
+    .mobile-menu-toggle {
+        display: block;
+    }
+    
+    /* 默认隐藏导航菜单 */
+    .nav-menu {
+        display: none;
+        width: 100%;
+        flex-direction: column;
+        margin-top: var(--spacing-md);
+        gap: var(--spacing-xs);
+        background-color: var(--bg-primary);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        padding: var(--spacing-sm);
+    }
+    
+    /* 显示导航菜单（当active类存在时） */
+    .nav-menu.active {
+        display: flex;
+    }
+    
+    .nav-item {
+        width: 100%;
+        justify-content: flex-start;
+        padding: var(--spacing-md);
+    }
+    
+    /* 移动端显示文字 */
+    .nav-item span {
+        display: inline;
+    }
+    
+    .section-header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .main-content {
+        padding: var(--spacing-lg) 0;
+    }
+    
+    .welcome-container h1 {
+        font-size: 2rem;
+    }
+    
+    .welcome-features {
+        grid-template-columns: 1fr;
+    }
+    
+    .welcome-icon {
+        font-size: 3rem;
+    }
+}
+
+/* 小屏手机（小于480px） */
+@media (max-width: 480px) {
+    .container {
+        padding: 0 var(--spacing-sm);
+    }
+    
+    .section-header h1 {
+        font-size: 1.25rem;
+        flex-direction: column;
+        gap: var(--spacing-xs);
+    }
+    
+    .welcome-container h1 {
+        font-size: 1.5rem;
+    }
+    
+    .welcome-description {
+        font-size: 1rem;
+    }
+}

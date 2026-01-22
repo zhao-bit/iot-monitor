@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>物联网智能监控系统</title>
+    
+    <!-- 引入样式文件 -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+    
+    <!-- 引入图标库（使用Font Awesome CDN） -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-brain"></i>
+                    <span>智能监控系统</span>
+                </div>
+                <nav class="nav-menu" id="navMenu">
+                    <a href="#image-recognition" class="nav-item active" data-section="image-recognition">
+                        <i class="fas fa-image"></i>
+                        <span>图片识别</span>
+                    </a>
+                    <a href="#recognition-records" class="nav-item" data-section="recognition-records">
+                        <i class="fas fa-history"></i>
+                        <span>识别记录</span>
+                    </a>
+                    <a href="#video-recognition" class="nav-item" data-section="video-recognition">
+                        <i class="fas fa-video"></i>
+                        <span>视频识别</span>
+                    </a>
+                    <a href="#video-records" class="nav-item" data-section="video-records">
+                        <i class="fas fa-film"></i>
+                        <span>视频记录</span>
+                    </a>
+                    <a href="#realtime-detection" class="nav-item" data-section="realtime-detection">
+                        <i class="fas fa-eye"></i>
+                        <span>实时检测</span>
+                    </a>
+                    <a href="#realtime-records" class="nav-item" data-section="realtime-records">
+                        <i class="fas fa-clock"></i>
+                        <span>实时记录</span>
+                    </a>
+                    <a href="#control-system" class="nav-item" data-section="control-system">
+                        <i class="fas fa-sliders-h"></i>
+                        <span>控制系统</span>
+                    </a>
+                    <a href="#profile" class="nav-item" data-section="profile">
+                        <i class="fas fa-user"></i>
+                        <span>个人中心</span>
+                    </a>
+                </nav>
+                <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区域 -->
+    <main class="main-content">
+        <div class="container">
+            <!-- 板块1：图片识别 -->
+            <section id="image-recognition" class="section active">
+                <div class="section-header">
+                    <h1><i class="fas fa-image"></i> 图片识别</h1>
+                    <p class="section-description">上传图片或使用摄像头拍摄，进行AI智能识别</p>
+                </div>
+                
+                <div class="image-recognition-container">
+                    <!-- 上传区域 -->
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-content">
+                            <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                            <h3>拖拽图片到此处或点击上传</h3>
+                            <p>支持 JPG、PNG、GIF 格式，最大 10MB</p>
+                            <input type="file" id="fileInput" accept="image/*" hidden>
+                            <button class="btn btn-primary" id="uploadBtn">
+                                <i class="fas fa-folder-open"></i> 选择文件
+                            </button>
+                        </div>
+                        <div class="upload-preview" id="uploadPreview" style="display: none;">
+                            <img id="previewImage" src="" alt="预览图片">
+                            <button class="btn-remove" id="removeImage">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 摄像头拍摄区域 -->
+                    <div class="camera-section">
+                        <div class="camera-container" id="cameraContainer">
+                            <video id="cameraVideo" autoplay playsinline style="display: none;"></video>
+                            <canvas id="cameraCanvas" style="display: none;"></canvas>
+                            <div class="camera-placeholder" id="cameraPlaceholder">
+                                <i class="fas fa-camera"></i>
+                                <p>点击下方按钮启动摄像头</p>
+                            </div>
+                        </div>
+                        <div class="camera-controls">
+                            <button class="btn btn-secondary" id="startCameraBtn">
+                                <i class="fas fa-video"></i> 启动摄像头
+                            </button>
+                            <button class="btn btn-primary" id="captureBtn" disabled>
+                                <i class="fas fa-camera"></i> 拍摄
+                            </button>
+                            <button class="btn btn-danger" id="stopCameraBtn" disabled>
+                                <i class="fas fa-stop"></i> 停止
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 识别按钮区域 -->
+                    <div class="recognition-actions" id="recognitionActions" style="display: none;">
+                        <button class="btn btn-primary btn-recognize" id="recognizeBtn">
+                            <i class="fas fa-search"></i> 开始识别
+                        </button>
+                        <button class="btn btn-secondary" id="clearImageBtn">
+                            <i class="fas fa-times"></i> 清除图片
+                        </button>
+                    </div>
+
+                    <!-- 识别结果区域 -->
+                    <div class="recognition-results" id="recognitionResults" style="display: none;">
+                        <h3><i class="fas fa-check-circle"></i> 识别结果</h3>
+                        <div class="results-content">
+                            <div class="result-image-container">
+                                <img id="resultImage" src="" alt="识别图片">
+                                <canvas id="resultCanvas"></canvas>
+                            </div>
+                            <div class="result-details">
+                                <div class="result-item">
+                                    <label>识别标签：</label>
+                                    <span id="resultLabel" class="result-value">-</span>
+                                </div>
+                                <div class="result-item">
+                                    <label>置信度：</label>
+                                    <span id="resultConfidence" class="result-value">-</span>
+                                </div>
+                                <div class="result-item">
+                                    <label>识别时间：</label>
+                                    <span id="resultTime" class="result-value">-</span>
+                                </div>
+                                <div class="result-actions">
+                                    <button class="btn btn-success" id="saveResultBtn">
+                                        <i class="fas fa-save"></i> 保存结果
+                                    </button>
+                                    <button class="btn btn-secondary" id="newRecognitionBtn">
+                                        <i class="fas fa-redo"></i> 重新识别
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 板块2：识别记录 -->
+            <section id="recognition-records" class="section">
+                <div class="section-header">
+                    <h1><i class="fas fa-history"></i> 识别记录</h1>
+                    <p class="section-description">查看历史图片识别结果</p>
+                </div>
+                
+                <div class="recognition-records-container">
+                    <!-- 工具栏：搜索、筛选、批量操作 -->
+                    <div class="records-toolbar card">
+                        <div class="toolbar-left">
+                            <!-- 搜索框 -->
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="searchInput" placeholder="搜索识别标签或时间...">
+                                <button class="btn-clear-search" id="clearSearchBtn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- 筛选器 -->
+                            <select id="filterLabel" class="filter-select">
+                                <option value="all">全部标签</option>
+                                <option value="人员">人员</option>
+                                <option value="车辆">车辆</option>
+                                <option value="动物">动物</option>
+                                <option value="建筑物">建筑物</option>
+                                <option value="植物">植物</option>
+                                <option value="设备">设备</option>
+                                <option value="标志牌">标志牌</option>
+                                <option value="障碍物">障碍物</option>
+                                <option value="其他物体">其他物体</option>
+                            </select>
+                            
+                            <select id="filterDate" class="filter-select">
+                                <option value="all">全部时间</option>
+                                <option value="today">今天</option>
+                                <option value="week">本周</option>
+                                <option value="month">本月</option>
+                            </select>
+                        </div>
+                        
+                        <div class="toolbar-right">
+                            <!-- 批量操作按钮 -->
+                            <div class="batch-actions" id="batchActions" style="display: none;">
+                                <span class="selected-count" id="selectedCount">已选择 0 项</span>
+                                <button class="btn btn-danger btn-sm" id="batchDeleteBtn">
+                                    <i class="fas fa-trash"></i> 批量删除
+                                </button>
+                            </div>
+                            
+                            <!-- 全选/取消全选 -->
+                            <button class="btn btn-secondary btn-sm" id="toggleSelectAllBtn">
+                                <i class="fas fa-check-square"></i> 全选
+                            </button>
+                            
+                            <!-- 刷新按钮 -->
+                            <button class="btn btn-secondary btn-sm" id="refreshRecordsBtn">
+                                <i class="fas fa-sync-alt"></i> 刷新
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 记录列表 -->
+                    <div class="records-list" id="recordsList">
+                        <!-- 记录卡片将通过JavaScript动态生成 -->
+                        <div class="empty-state" id="emptyState">
+                            <i class="fas fa-inbox"></i>
+                            <p>暂无识别记录</p>
+                            <p class="empty-hint">在"图片识别"板块进行识别后，记录会显示在这里</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 分页（可选） -->
+                    <div class="records-pagination" id="recordsPagination" style="display: none;">
+                        <button class="btn btn-secondary btn-sm" id="prevPageBtn" disabled>
+                            <i class="fas fa-chevron-left"></i> 上一页
+                        </button>
+                        <span class="page-info" id="pageInfo">第 1 页，共 1 页</span>
+                        <button class="btn btn-secondary btn-sm" id="nextPageBtn" disabled>
+                            下一页 <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 板块3：视频识别 -->
+            <section id="video-recognition" class="section">
+                <div class="section-header">
+                    <h1><i class="fas fa-video"></i> 视频识别</h1>
+                    <p class="section-description">上传视频或实时视频流识别</p>
+                </div>
+                
+                <div class="video-recognition-container">
+                    <!-- 左侧：视频播放区域 -->
+                    <div class="video-player-section">
+                        <!-- 上传区域 -->
+                        <div class="video-upload-area" id="videoUploadArea">
+                            <div class="upload-content">
+                                <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                                <h3>拖拽视频到此处或点击上传</h3>
+                                <p>支持 MP4、AVI、MOV 格式，最大 500MB</p>
+                                <input type="file" id="videoFileInput" accept="video/*" hidden>
+                                <button class="btn btn-primary btn-upload" id="uploadVideoBtn">
+                                    <i class="fas fa-folder-open"></i> 选择文件
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 视频播放器 -->
+                        <div class="video-player-wrapper" id="videoPlayerWrapper" style="display: none;">
+                            <div class="video-container">
+                                <video id="videoPlayer" controls></video>
+                                <canvas id="detectionCanvas"></canvas>
+                                <div class="detection-overlay-info" id="overlayInfo"></div>
+                            </div>
+                            <div class="video-controls">
+                                <button class="btn btn-success" id="startDetectionBtn">
+                                    <i class="fas fa-play"></i> 开始识别
+                                </button>
+                                <button class="btn btn-danger" id="stopDetectionBtn" style="display: none;">
+                                    <i class="fas fa-stop"></i> 停止识别
+                                </button>
+                                <button class="btn btn-secondary" id="clearVideoBtn">
+                                    <i class="fas fa-times"></i> 清除
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- WebRTC实时流占位 -->
+                        <div class="realtime-stream-section" id="realtimeStreamSection" style="display: none;">
+                            <div class="stream-placeholder">
+                                <i class="fas fa-satellite-dish"></i>
+                                <h3>实时视频流</h3>
+                                <p>未来接入WebRTC实时视频流</p>
+                                <button class="btn btn-primary" id="connectStreamBtn">
+                                    <i class="fas fa-plug"></i> 连接视频流
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 右侧：识别结果面板 -->
+                    <div class="recognition-results-panel">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-list"></i> 识别结果</h3>
+                            <button class="btn btn-sm btn-secondary" id="clearResultsBtn">
+                                <i class="fas fa-trash"></i> 清空
+                            </button>
+                        </div>
+                        <div class="results-list" id="resultsList">
+                            <div class="empty-results">
+                                <i class="fas fa-inbox"></i>
+                                <p>暂无识别结果</p>
+                                <p class="hint">上传视频并开始识别后，结果将显示在这里</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 板块4：视频记录 -->
+            <section id="video-records" class="section">
+                <div class="section-header">
+                    <h1><i class="fas fa-film"></i> 视频记录</h1>
+                    <p class="section-description">查看历史视频识别记录</p>
+                </div>
+                
+                <div class="video-records-container">
+                    <!-- 工具栏 -->
+                    <div class="video-records-toolbar card">
+                        <div class="toolbar-left">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="videoSearchInput" placeholder="搜索视频名称或时间...">
+                                <button class="btn-clear" id="clearVideoSearchBtn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <select id="videoFilterStatus" class="filter-select">
+                                <option value="all">全部状态</option>
+                                <option value="completed">已完成</option>
+                                <option value="processing">处理中</option>
+                                <option value="failed">失败</option>
+                            </select>
+                        </div>
+                        <div class="toolbar-right">
+                            <button class="btn btn-secondary btn-sm" id="refreshVideoRecordsBtn">
+                                <i class="fas fa-sync-alt"></i> 刷新
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 视频记录列表 -->
+                    <div class="video-records-grid" id="videoRecordsGrid">
+                        <!-- 记录卡片将通过JavaScript动态生成 -->
+                    </div>
+                    
+                    <!-- 分页 -->
+                    <div class="video-pagination" id="videoPagination"></div>
+                </div>
+            </section>
+
+            <!-- 板块5：实时检测 -->
+            <section id="realtime-detection" class="section">
+                <div class="section-header">
+                    <h1><i class="fas fa-eye"></i> 实时检测</h1>
+                    <p class="section-description">实时监控画面和检测结果</p>
+                </div>
+                
+                <div class="realtime-detection-container">
+                    <!-- 主要内容区域 -->
+                    <div class="detection-main">
+                        <!-- 控制面板 -->
+                        <div class="detection-controls card">
+                            <div class="control-group">
+                                <h3><i class="fas fa-sliders-h"></i> 检测控制</h3>
+                                <div class="control-buttons-group">
+                                    <button class="btn btn-success" id="startDetectionBtn">
+                                        <i class="fas fa-play"></i> 开始检测
+                                    </button>
+                                    <button class="btn btn-danger" id="stopDetectionBtn" disabled>
+                                        <i class="fas fa-stop"></i> 停止检测
+                                    </button>
+                                    <button class="btn btn-secondary" id="refreshCamerasBtn">
+                                        <i class="fas fa-sync-alt"></i> 刷新画面
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="control-group">
+                                <h4><i class="fas fa-cog"></i> 检测参数</h4>
+                                <div class="param-controls">
+                                    <div class="param-item">
+                                        <label for="detectionSensitivity">检测灵敏度</label>
+                                        <input type="range" id="detectionSensitivity" min="1" max="10" value="5" step="1">
+                                        <span class="param-value" id="sensitivityValue">5</span>
+                                    </div>
+                                    <div class="param-item">
+                                        <label for="detectionInterval">检测间隔 (秒)</label>
+                                        <input type="number" id="detectionInterval" min="1" max="60" value="2" step="1">
+                                    </div>
+                                    <div class="param-item">
+                                        <label>
+                                            <input type="checkbox" id="enableAlerts" checked>
+                                            启用报警通知
+                                        </label>
+                                    </div>
+                                    <div class="param-item">
+                                        <label>
+                                            <input type="checkbox" id="enableSound" checked>
+                                            启用声音提示
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 摄像头画面网格 -->
+                        <div class="camera-grid" id="cameraGrid">
+                            <!-- 摄像头1 -->
+                            <div class="camera-item">
+                                <div class="camera-header">
+                                    <span class="camera-name">摄像头 01</span>
+                                    <span class="camera-status online">
+                                        <i class="fas fa-circle"></i> 在线
+                                    </span>
+                                </div>
+                                <div class="camera-view" id="cameraView1">
+                                    <canvas class="camera-canvas" id="cameraCanvas1"></canvas>
+                                    <div class="detection-overlay" id="overlay1"></div>
+                                    <div class="camera-placeholder">
+                                        <i class="fas fa-video"></i>
+                                        <p>等待启动...</p>
+                                    </div>
+                                </div>
+                                <div class="camera-info">
+                                    <span class="detection-count" id="count1">检测: 0</span>
+                                    <span class="last-detection" id="last1">--</span>
+                                </div>
+                            </div>
+                            
+                            <!-- 摄像头2 -->
+                            <div class="camera-item">
+                                <div class="camera-header">
+                                    <span class="camera-name">摄像头 02</span>
+                                    <span class="camera-status online">
+                                        <i class="fas fa-circle"></i> 在线
+                                    </span>
+                                </div>
+                                <div class="camera-view" id="cameraView2">
+                                    <canvas class="camera-canvas" id="cameraCanvas2"></canvas>
+                                    <div class="detection-overlay" id="overlay2"></div>
+                                    <div class="camera-placeholder">
+                                        <i class="fas fa-video"></i>
+                                        <p>等待启动...</p>
+                                    </div>
+                                </div>
+                                <div class="camera-info">
+                                    <span class="detection-count" id="count2">检测: 0</span>
+                                    <span class="last-detection" id="last2">--</span>
+                                </div>
+                            </div>
+                            
+                            <!-- 摄像头3 -->
+                            <div class="camera-item">
+                                <div class="camera-header">
+                                    <span class="camera-name">摄像头 03</span>
+                                    <span class="camera-status offline">
+                                        <i class="fas fa-circle"></i> 离线
+                                    </span>
+                                </div>
+                                <div class="camera-view" id="cameraView3">
+                                    <canvas class="camera-canvas" id="cameraCanvas3"></canvas>
+                                    <div class="detection-overlay" id="overlay3"></div>
+                                    <div class="camera-placeholder">
+                                        <i class="fas fa-video-slash"></i>
+                                        <p>摄像头离线</p>
+                                    </div>
+                                </div>
+                                <div class="camera-info">
+                                    <span class="detection-count" id="count3">检测: 0</span>
+                                    <span class="last-detection" id="last3">--</span>
+                                </div>
+                            </div>
+                            
+                            <!-- 摄像头4 -->
+                            <div class="camera-item">
+                                <div class="camera-header">
+                                    <span class="camera-name">摄像头 04</span>
+                                    <span class="camera-status online">
+                                        <i class="fas fa-circle"></i> 在线
+                                    </span>
+                                </div>
+                                <div class="camera-view" id="cameraView4">
+                                    <canvas class="camera-canvas" id="cameraCanvas4"></canvas>
+                                    <div class="detection-overlay" id="overlay4"></div>
+                                    <div class="camera-placeholder">
+                                        <i class="fas fa-video"></i>
+                                        <p>等待启动...</p>
+                                    </div>
+                                </div>
+                                <div class="camera-info">
+                                    <span class="detection-count" id="count4">检测: 0</span>
+                                    <span class="last-detection" id="last4">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 侧边栏：统计和报警 -->
+                    <div class="detection-sidebar">
+                        <!-- 检测统计 -->
+                        <div class="statistics-panel card">
+                            <h3><i class="fas fa-chart-bar"></i> 检测统计</h3>
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <div class="stat-icon total">
+                                        <i class="fas fa-eye"></i>
+                                    </div>
+                                    <div class="stat-content">
+                                        <div class="stat-value" id="totalDetections">0</div>
+                                        <div class="stat-label">总检测数</div>
+                                    </div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon active">
+                                        <i class="fas fa-video"></i>
+                                    </div>
+                                    <div class="stat-content">
+                                        <div class="stat-value" id="activeCameras">0</div>
+                                        <div class="stat-label">在线摄像头</div>
+                                    </div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon alerts">
+                                        <i class="fas fa-bell"></i>
+                                    </div>
+                                    <div class="stat-content">
+                                        <div class="stat-value" id="totalAlerts">0</div>
+                                        <div class="stat-label">报警次数</div>
+                                    </div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon objects">
+                                        <i class="fas fa-object-group"></i>
+                                    </div>
+                                    <div class="stat-content">
+                                        <div class="stat-value" id="detectedObjects">0</div>
+                                        <div class="stat-label">检测对象</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 报警通知 -->
+                        <div class="alerts-panel card">
+                            <div class="panel-header">
+                                <h3><i class="fas fa-bell"></i> 报警通知</h3>
+                                <button class="btn btn-sm btn-secondary" id="clearAlertsBtn">
+                                    <i class="fas fa-trash"></i> 清空
+                                </button>
+                            </div>
+                            <div class="alerts-list" id="alertsList">
+                                <div class="empty-alerts">
+                                    <i class="fas fa-bell-slash"></i>
+                                    <p>暂无报警信息</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 板块6：实时记录 -->
+            <section id="realtime-records" class="section">
+                <div class="section-header">
+                    <h1><i class="fas fa-clock"></i> 实时记录</h1>
+                    <p class="section-description">实时检测的历史记录</p>
+                </div>
+                
+                <div class="realtime-records-container">
+                    <!-- 工具栏 -->
+                    <div class="records-toolbar card">
+                        <div class="toolbar-left">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="realtimeSearchInput" placeholder="搜索事件、设备或时间...">
+                                <button class="btn-clear-search" id="clearRealtimeSearchBtn" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <select id="realtimeFilterType" class="filter-select">
+                                <option value="all">全部类型</option>
+                                <option value="detection">检测事件</option>
+                                <option value="alert">报警事件</option>
+                                <option value="control">控制事件</option>
+                                <option value="status">状态变化</option>
+                            </select>
+                            <select id="realtimeFilterDate" class="filter-select">
+                                <option value="all">全部时间</option>
+                                <option value="today">今天</option>
+                                <option value="week">本周</option>
+                                <option value="month">本月</option>
+                            </select>
+                        </div>
+                        <div class="toolbar-right">
+                            <button class="btn btn-secondary btn-sm" id="exportRecordsBtn">
+                                <i class="fas fa-download"></i> 导出
+                            </button>
+                            <button class="btn btn-secondary btn-sm" id="refreshRealtimeRecordsBtn">
+                                <i class="fas fa-sync-alt"></i> 刷新
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 统计卡片 -->
+                    <div class="records-stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon total">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="totalRecords">0</div>
+                                <div class="stat-label">总记录数</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon alerts">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="alertRecords">0</div>
+                                <div class="stat-label">报警记录</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon today">
+                                <i class="fas fa-calendar-day"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="todayRecords">0</div>
+                                <div class="stat-label">今日记录</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 记录列表 -->
+                    <div class="realtime-records-list" id="realtimeRecordsList">
+                        <!-- 记录将通过JavaScript动态生成 -->
+                    </div>
+                    
+                    <!-- 分页 -->
+                    <div class="records-pagination" id="realtimePagination"></div>
+                </div>
+            </section>
+
+            <!-- 板块7：控制系统 -->
+            <section id="control-system" class="section">
+                <div class="section-header">
+                    <h1><i class="fas fa-sliders-h"></i> 控制系统</h1>
+                    <p class="section-description">设备远程控制面板</p>
+                </div>
+                
+                <div class="control-system-container">
+                    <!-- 设备状态概览 -->
+                    <div class="status-overview card">
+                        <h3><i class="fas fa-chart-line"></i> 设备状态概览</h3>
+                        <div class="status-stats">
+                            <div class="stat-item">
+                                <div class="stat-icon online">
+                                    <i class="fas fa-circle"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <div class="stat-value" id="onlineCount">0</div>
+                                    <div class="stat-label">在线设备</div>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon offline">
+                                    <i class="fas fa-circle"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <div class="stat-value" id="offlineCount">0</div>
+                                    <div class="stat-label">离线设备</div>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon running">
+                                    <i class="fas fa-play-circle"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <div class="stat-value" id="runningCount">0</div>
+                                    <div class="stat-label">运行中</div>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon stopped">
+                                    <i class="fas fa-stop-circle"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <div class="stat-value" id="stoppedCount">0</div>
+                                    <div class="stat-label">已停止</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="status-refresh">
+                            <button class="btn btn-secondary" id="refreshStatusBtn">
+                                <i class="fas fa-sync-alt"></i> 刷新状态
+                            </button>
+                            <span class="last-update" id="lastUpdateTime">最后更新：--</span>
+                        </div>
+                    </div>
+
+                    <!-- 主要内容区域 -->
+                    <div class="control-main-content">
+                        <!-- 左侧：设备分组树 -->
+                        <div class="device-tree-panel card">
+                            <div class="panel-header">
+                                <h3><i class="fas fa-sitemap"></i> 设备分组</h3>
+                                <button class="btn btn-sm btn-primary" id="addGroupBtn">
+                                    <i class="fas fa-plus"></i> 添加分组
+                                </button>
+                            </div>
+                            <div class="device-tree" id="deviceTree">
+                                <!-- 树形结构将通过JavaScript动态生成 -->
+                            </div>
+                        </div>
+
+                        <!-- 右侧：设备详情和控制面板 -->
+                        <div class="device-detail-panel card">
+                            <div id="noDeviceSelected" class="no-selection">
+                                <i class="fas fa-mouse-pointer"></i>
+                                <p>请从左侧选择一个设备</p>
+                            </div>
+
+                            <!-- 设备详情（选中设备后显示） -->
+                            <div id="deviceDetail" style="display: none;">
+                                <!-- 设备基本信息 -->
+                                <div class="device-info">
+                                    <div class="device-header">
+                                        <div class="device-title">
+                                            <h3 id="deviceName">设备名称</h3>
+                                            <span class="device-status-badge" id="deviceStatusBadge">
+                                                <i class="fas fa-circle"></i> 离线
+                                            </span>
+                                        </div>
+                                        <div class="device-id">
+                                            <span>设备ID：</span>
+                                            <span id="deviceId">--</span>
+                                        </div>
+                                    </div>
+                                    <div class="device-meta">
+                                        <div class="meta-item">
+                                            <i class="fas fa-tag"></i>
+                                            <span>分组：</span>
+                                            <span id="deviceGroup">--</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <i class="fas fa-clock"></i>
+                                            <span>最后在线：</span>
+                                            <span id="deviceLastOnline">--</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <i class="fas fa-info-circle"></i>
+                                            <span>运行状态：</span>
+                                            <span id="deviceRunStatus">--</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 控制面板 -->
+                                <div class="control-panel">
+                                    <h4><i class="fas fa-sliders-h"></i> 设备控制</h4>
+                                    <div class="control-buttons">
+                                        <button class="btn btn-success" id="startDeviceBtn" data-action="start">
+                                            <i class="fas fa-play"></i> 启动
+                                        </button>
+                                        <button class="btn btn-danger" id="stopDeviceBtn" data-action="stop">
+                                            <i class="fas fa-stop"></i> 停止
+                                        </button>
+                                        <button class="btn btn-warning" id="restartDeviceBtn" data-action="restart">
+                                            <i class="fas fa-redo"></i> 重启
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- 设备参数设置 -->
+                                <div class="device-settings">
+                                    <h4><i class="fas fa-cog"></i> 参数设置</h4>
+                                    <form id="deviceSettingsForm" class="settings-form">
+                                        <div class="form-group">
+                                            <label for="devicePower">功率设置 (%)</label>
+                                            <input type="range" id="devicePower" name="power" min="0" max="100" value="50" step="1">
+                                            <span class="range-value" id="powerValue">50%</span>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="deviceSpeed">运行速度</label>
+                                            <select id="deviceSpeed" name="speed">
+                                                <option value="low">低速</option>
+                                                <option value="medium" selected>中速</option>
+                                                <option value="high">高速</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="deviceMode">运行模式</label>
+                                            <select id="deviceMode" name="mode">
+                                                <option value="auto" selected>自动</option>
+                                                <option value="manual">手动</option>
+                                                <option value="scheduled">定时</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="deviceInterval">检测间隔 (秒)</label>
+                                            <input type="number" id="deviceInterval" name="interval" min="1" max="3600" value="10">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>
+                                                <input type="checkbox" id="deviceAutoRestart" name="autoRestart">
+                                                异常自动重启
+                                            </label>
+                                        </div>
+                                        <div class="form-actions">
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="fas fa-save"></i> 保存设置
+                                            </button>
+                                            <button type="button" class="btn btn-secondary" id="resetSettingsBtn">
+                                                <i class="fas fa-undo"></i> 重置
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 操作日志 -->
+                    <div class="operation-logs card">
+                        <div class="panel-header">
+                            <h3><i class="fas fa-list-alt"></i> 操作日志</h3>
+                            <div class="log-controls">
+                                <button class="btn btn-sm btn-secondary" id="clearLogsBtn">
+                                    <i class="fas fa-trash"></i> 清空日志
+                                </button>
+                                <button class="btn btn-sm btn-secondary" id="exportLogsBtn">
+                                    <i class="fas fa-download"></i> 导出
+                                </button>
+                            </div>
+                        </div>
+                        <div class="log-filters">
+                            <select id="logFilterType" class="filter-select">
+                                <option value="all">全部类型</option>
+                                <option value="start">启动</option>
+                                <option value="stop">停止</option>
+                                <option value="restart">重启</option>
+                                <option value="settings">设置</option>
+                            </select>
+                            <select id="logFilterDevice" class="filter-select">
+                                <option value="all">全部设备</option>
+                            </select>
+                        </div>
+                        <div class="logs-container" id="logsContainer">
+                            <!-- 日志列表将通过JavaScript动态生成 -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 板块8：个人中心 -->
+            <section id="profile" class="section">
+                <div class="section-header">
+                    <h1><i class="fas fa-user"></i> 个人中心</h1>
+                    <p class="section-description">用户信息和系统设置</p>
+                </div>
+                
+                <div class="profile-container">
+                    <!-- 用户信息卡片 -->
+                    <div class="profile-card user-info-card card">
+                        <div class="user-avatar-section">
+                            <div class="avatar-wrapper">
+                                <img src="https://via.placeholder.com/120" alt="用户头像" id="userAvatar">
+                                <button class="avatar-edit-btn">
+                                    <i class="fas fa-camera"></i>
+                                </button>
+                            </div>
+                            <h2 id="userName">管理员</h2>
+                            <p id="userEmail">admin@monitoring.com</p>
+                            <div class="user-badges">
+                                <span class="badge badge-vip">
+                                    <i class="fas fa-crown"></i> VIP用户
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 系统设置卡片 -->
+                    <div class="profile-card settings-card card">
+                        <h3><i class="fas fa-cog"></i> 系统设置</h3>
+                        <div class="settings-list">
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <i class="fas fa-palette"></i>
+                                    <div>
+                                        <span class="setting-label">主题切换</span>
+                                        <span class="setting-desc">深色/浅色模式</span>
+                                    </div>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="themeToggle" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <i class="fas fa-bell"></i>
+                                    <div>
+                                        <span class="setting-label">通知设置</span>
+                                        <span class="setting-desc">接收系统通知</span>
+                                    </div>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="notificationToggle" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <i class="fas fa-language"></i>
+                                    <div>
+                                        <span class="setting-label">语言选择</span>
+                                        <span class="setting-desc">界面语言</span>
+                                    </div>
+                                </div>
+                                <select class="language-select" id="languageSelect">
+                                    <option value="zh-CN">简体中文</option>
+                                    <option value="en-US">English</option>
+                                    <option value="ja-JP">日本語</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 使用统计卡片 -->
+                    <div class="profile-card stats-card card">
+                        <h3><i class="fas fa-chart-pie"></i> 使用统计</h3>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-icon video">
+                                    <i class="fas fa-video"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="totalVideos">0</div>
+                                    <div class="stat-label">处理视频</div>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon detection">
+                                    <i class="fas fa-eye"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="totalDetections">0</div>
+                                    <div class="stat-label">识别次数</div>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon time">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="totalTime">0h</div>
+                                    <div class="stat-label">使用时长</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 图表占位 -->
+                        <div class="chart-placeholder">
+                            <canvas id="usageChart"></canvas>
+                            <p class="chart-note">未来接入真实统计图表API</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 登录历史卡片 -->
+                    <div class="profile-card login-history-card card">
+                        <h3><i class="fas fa-history"></i> 登录历史</h3>
+                        <div class="login-history-list" id="loginHistoryList">
+                            <!-- 登录历史将通过JavaScript动态生成 -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 物联网智能监控系统. 保留所有权利.</p>
+        </div>
+    </footer>
+
+    <!-- 操作确认对话框（全局） -->
+    <div id="confirmDialog" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="confirmDialogTitle">确认操作</h3>
+                <button class="modal-close" id="confirmDialogClose">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmDialogMessage">确定要执行此操作吗？</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="confirmDialogCancel">取消</button>
+                <button class="btn btn-primary" id="confirmDialogConfirm">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 记录详情模态框 -->
+    <div id="recordDetailModal" class="modal" style="display: none;">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3><i class="fas fa-info-circle"></i> 识别记录详情</h3>
+                <button class="modal-close" id="recordDetailClose">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="record-detail-content">
+                    <div class="detail-image-section">
+                        <img id="detailImage" src="" alt="识别图片">
+                        <canvas id="detailCanvas"></canvas>
+                    </div>
+                    <div class="detail-info-section">
+                        <div class="detail-item">
+                            <label>识别标签：</label>
+                            <span id="detailLabel" class="detail-value">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>置信度：</label>
+                            <span id="detailConfidence" class="detail-value">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>识别时间：</label>
+                            <span id="detailTime" class="detail-value">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>记录ID：</label>
+                            <span id="detailId" class="detail-value">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" id="deleteRecordBtn">
+                    <i class="fas fa-trash"></i> 删除记录
+                </button>
+                <button class="btn btn-secondary" id="closeDetailBtn">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 视频详情模态框 -->
+    <div id="videoDetailModal" class="modal" style="display: none;">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3><i class="fas fa-info-circle"></i> 视频详情</h3>
+                <button class="modal-close" id="closeVideoDetailBtn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="videoDetailContent">
+                <!-- 详情内容将通过JavaScript动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入JavaScript文件 -->
+    <script src="js/main.js"></script>
+    <script src="js/modules/imageRecognition.js"></script>
+    <script src="js/modules/recognitionRecords.js"></script>
+    <script src="js/modules/videoRecognition.js"></script>
+    <script src="js/modules/videoRecords.js"></script>
+    <script src="js/modules/realtimeDetection.js"></script>
+    <script src="js/modules/realtimeRecords.js"></script>
+    <script src="js/modules/profile.js"></script>
+    <script src="js/modules/controlSystem.js"></script>
+</body>
+</html>
