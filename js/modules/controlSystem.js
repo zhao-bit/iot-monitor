@@ -1,22 +1,30 @@
 /**
  * ============================================
- * 控制系统模块
- * 功能：设备管理、远程控制、参数设置、操作日志
+ * 控制系统模块（已对接后端 API）
+ * 功能：系统控制、电源控制、电压探索、目标控制
  * ============================================
  */
 
+const API_BASE = "http://ynlu100202514.vicp.fun"; // FastAPI 后端地址
+
+// ========== 全局变量 ==========
+let systemStatus = null;
+let statusUpdateInterval = null;
+let operationLogs = [];
+let lastExplorationActive = false; // 用于检测探索结束并自动刷新模式列表
+let prevModeCount = 0;
 // 等待DOM加载完成
 document.addEventListener('DOMContentLoaded', function() {
     console.log('控制系统模块初始化...');
     
     // 初始化所有功能
-    initDeviceData();
-    initDeviceTree();
-    initDeviceControl();
-    initDeviceSettings();
-    initOperationLogs();
+    initHvPowerConnection();
+    initDetectionConnection();
+    initSystemControls();
+    initPowerControls();
+    initControlModes();
     initStatusOverview();
-    initConfirmDialog();
+    initOperationLogs();
     
     // 启动状态自动更新
     startStatusUpdate();
@@ -24,634 +32,1039 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('控制系统模块初始化完成！');
 });
 
-// ========== 全局变量 ==========
-let devices = []; // 设备列表
-let selectedDevice = null; // 当前选中的设备
-let statusUpdateInterval = null; // 状态更新定时器
-let operationLogs = []; // 操作日志列表
-
-// 模拟设备数据（实际项目中应从后端API获取）
-const mockDevices = [
-    {
-        id: 'DEV001',
-        name: '监控摄像头-01',
-        group: '监控设备',
-        status: 'online',
-        runStatus: 'running',
-        lastOnline: '2024-01-22 18:30:15',
-        settings: {
-            power: 75,
-            speed: 'medium',
-            mode: 'auto',
-            interval: 10,
-            autoRestart: true
-        }
-    },
-    {
-        id: 'DEV002',
-        name: '智能传感器-01',
-        group: '传感器设备',
-        status: 'online',
-        runStatus: 'stopped',
-        lastOnline: '2024-01-22 18:29:45',
-        settings: {
-            power: 50,
-            speed: 'low',
-            mode: 'manual',
-            interval: 5,
-            autoRestart: false
-        }
-    },
-    {
-        id: 'DEV003',
-        name: '环境监测器-01',
-        group: '监测设备',
-        status: 'offline',
-        runStatus: 'stopped',
-        lastOnline: '2024-01-22 17:15:30',
-        settings: {
-            power: 60,
-            speed: 'medium',
-            mode: 'auto',
-            interval: 15,
-            autoRestart: true
-        }
-    },
-    {
-        id: 'DEV004',
-        name: '门禁控制器-01',
-        group: '安防设备',
-        status: 'online',
-        runStatus: 'running',
-        lastOnline: '2024-01-22 18:31:00',
-        settings: {
-            power: 80,
-            speed: 'high',
-            mode: 'scheduled',
-            interval: 30,
-            autoRestart: true
-        }
-    },
-    {
-        id: 'DEV005',
-        name: '温湿度传感器-01',
-        group: '传感器设备',
-        status: 'online',
-        runStatus: 'running',
-        lastOnline: '2024-01-22 18:30:50',
-        settings: {
-            power: 40,
-            speed: 'low',
-            mode: 'auto',
-            interval: 20,
-            autoRestart: false
-        }
-    }
-];
-
-// 设备分组结构
-const deviceGroups = [
-    {
-        name: '监控设备',
-        devices: ['DEV001']
-    },
-    {
-        name: '传感器设备',
-        devices: ['DEV002', 'DEV005']
-    },
-    {
-        name: '监测设备',
-        devices: ['DEV003']
-    },
-    {
-        name: '安防设备',
-        devices: ['DEV004']
-    }
-];
+// ==================== 后端通信 ====================
 
 /**
- * 初始化设备数据
+ * 获取系统状态
+ * 逻辑：每5秒获取一次状态，实时检测探索进度，并在模式增加或探索结束时自动刷新下拉列表
  */
-function initDeviceData() {
-    // 从本地存储加载设备数据，如果没有则使用模拟数据
-    const savedDevices = localStorage.getItem('controlSystemDevices');
-    if (savedDevices) {
-        devices = JSON.parse(savedDevices);
-    } else {
-        devices = JSON.parse(JSON.stringify(mockDevices)); // 深拷贝
-        saveDevicesToStorage();
+async function fetchSystemStatus() {
+    const url = `${API_BASE}/api/system/status`;
+    // 调试时可以开启下面这行，生产环境如果觉得烦可以注释掉
+    // showRequestStatus(`请求: ${url} ...`, 'info');
+
+    try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        systemStatus = data;
+
+        // --- 核心同步逻辑开始 ---
+        const exploring = data.system?.exploration_active || false;
+        const currentModeCount = data.control?.mode_count || 0;
+
+        // 判定条件：
+        // 1. 探索状态从“运行中”变成了“已停止”（lastExplorationActive 为 true，exploring 为 false）
+        // 2. 或者在探索过程中，后端发现新模式了（currentModeCount 大于 prevModeCount）
+        if ((lastExplorationActive && !exploring) || (currentModeCount > prevModeCount)) {
+            console.log(`[同步] 检测到模式更新 (数量: ${currentModeCount})，正在刷新下拉框...`);
+            loadModesList(); // 触发你刚才修改好的 loadModesList 刷新 UI
+        }
+
+        // 更新持久化状态供下次对比
+        lastExplorationActive = exploring;
+        prevModeCount = currentModeCount;
+        // --- 核心同步逻辑结束 ---
+
+        updateStatusUI(data);
+        
+        // 只有请求成功才显示，如果觉得太频繁可以去掉
+        // showRequestStatus(`系统在线`, 'success');
+
+        console.log("系统状态:", data);
+    } catch (e) {
+        console.error("获取系统状态失败", e);
+        showRequestStatus(`连接失败: 请检查后端 API 是否运行`, 'error');
+        // 不要在这里使用 confirm 否则会卡死自动刷新
     }
-    
-    // 加载操作日志
-    const savedLogs = localStorage.getItem('controlSystemLogs');
-    if (savedLogs) {
-        operationLogs = JSON.parse(savedLogs);
+}
+/**
+ * 初始化系统
+ */
+async function initSystem() {
+    const url = `${API_BASE}/api/system/init`;
+    showRequestStatus(`请求: ${url} ...`, 'info');
+
+    try {
+        const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                modbus_port: "COM5",
+                detection_port: 12345,
+                model_path: "best.pt",
+                camera_id: 1
+            })
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        console.log("初始化系统返回:", data);
+        showRequestStatus(`初始化成功: ${url}`, 'success');
+        showMessage(data.message || "系统初始化成功", "success");
+        
+        addOperationLog('system', 'init', '系统初始化', 'success');
+        
+        // 刷新状态
+        setTimeout(fetchSystemStatus, 500);
+    } catch (e) {
+        console.error("初始化系统失败", e);
+        showRequestStatus(`初始化失败: ${url}`, 'error');
+        showMessage("系统初始化失败: " + e.message, "error");
+        addOperationLog('system', 'init', '系统初始化失败', 'error');
     }
 }
 
 /**
- * 保存设备数据到本地存储
+ * 关闭系统
  */
-function saveDevicesToStorage() {
-    localStorage.setItem('controlSystemDevices', JSON.stringify(devices));
-}
+async function shutdownSystem() {
+    if (!confirm('确定要关闭系统吗？')) return;
+    
+    const url = `${API_BASE}/api/system/shutdown`;
+    showRequestStatus(`请求: ${url} ...`, 'info');
 
-/**
- * 初始化设备树形结构
- */
-function initDeviceTree() {
-    const deviceTree = document.getElementById('deviceTree');
-    const addGroupBtn = document.getElementById('addGroupBtn');
-    
-    // 渲染设备树
-    renderDeviceTree();
-    
-    // 添加分组按钮
-    addGroupBtn.addEventListener('click', function() {
-        const groupName = prompt('请输入分组名称：');
-        if (groupName && groupName.trim()) {
-            addDeviceGroup(groupName.trim());
-        }
-    });
-}
-
-/**
- * 渲染设备树
- */
-function renderDeviceTree() {
-    const deviceTree = document.getElementById('deviceTree');
-    deviceTree.innerHTML = '';
-    
-    // 按分组组织设备
-    const groupedDevices = {};
-    devices.forEach(device => {
-        if (!groupedDevices[device.group]) {
-            groupedDevices[device.group] = [];
-        }
-        groupedDevices[device.group].push(device);
-    });
-    
-    // 渲染每个分组
-    Object.keys(groupedDevices).forEach(groupName => {
-        const groupEl = createGroupElement(groupName, groupedDevices[groupName]);
-        deviceTree.appendChild(groupEl);
-    });
-}
-
-/**
- * 创建分组元素
- * @param {string} groupName - 分组名称
- * @param {Array} groupDevices - 该分组的设备列表
- * @returns {HTMLElement} 分组元素
- */
-function createGroupElement(groupName, groupDevices) {
-    const groupDiv = document.createElement('div');
-    groupDiv.className = 'tree-group';
-    
-    // 分组标题
-    const groupHeader = document.createElement('div');
-    groupHeader.className = 'tree-group-header';
-    groupHeader.innerHTML = `
-        <i class="fas fa-folder"></i>
-        <span class="group-name">${groupName}</span>
-        <span class="group-count">(${groupDevices.length})</span>
-    `;
-    
-    // 分组内容（设备列表）
-    const groupContent = document.createElement('div');
-    groupContent.className = 'tree-group-content';
-    
-    groupDevices.forEach(device => {
-        const deviceEl = createDeviceElement(device);
-        groupContent.appendChild(deviceEl);
-    });
-    
-    // 点击分组标题展开/折叠
-    groupHeader.addEventListener('click', function() {
-        groupContent.classList.toggle('collapsed');
-        const icon = groupHeader.querySelector('i');
-        icon.classList.toggle('fa-folder');
-        icon.classList.toggle('fa-folder-open');
-    });
-    
-    groupDiv.appendChild(groupHeader);
-    groupDiv.appendChild(groupContent);
-    
-    return groupDiv;
-}
-
-/**
- * 创建设备元素
- * @param {Object} device - 设备对象
- * @returns {HTMLElement} 设备元素
- */
-function createDeviceElement(device) {
-    const deviceDiv = document.createElement('div');
-    deviceDiv.className = `tree-device ${device.status === 'online' ? 'online' : 'offline'}`;
-    deviceDiv.dataset.deviceId = device.id;
-    
-    deviceDiv.innerHTML = `
-        <i class="fas fa-circle status-indicator"></i>
-        <span class="device-name">${device.name}</span>
-        <span class="device-status">${device.runStatus === 'running' ? '运行中' : '已停止'}</span>
-    `;
-    
-    // 点击设备选中
-    deviceDiv.addEventListener('click', function() {
-        selectDevice(device.id);
-    });
-    
-    return deviceDiv;
-}
-
-/**
- * 选中设备
- * @param {string} deviceId - 设备ID
- */
-function selectDevice(deviceId) {
-    // 更新选中状态
-    document.querySelectorAll('.tree-device').forEach(el => {
-        el.classList.remove('selected');
-    });
-    const deviceEl = document.querySelector(`[data-device-id="${deviceId}"]`);
-    if (deviceEl) {
-        deviceEl.classList.add('selected');
-    }
-    
-    // 查找设备对象
-    selectedDevice = devices.find(d => d.id === deviceId);
-    
-    if (selectedDevice) {
-        // 显示设备详情
-        displayDeviceDetail(selectedDevice);
+    try {
+        const res = await fetch(url, { method: "POST" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        showRequestStatus(`关闭成功: ${url}`, 'success');
+        showMessage(data.message || "系统已关闭", "success");
+        
+        addOperationLog('system', 'shutdown', '系统关闭', 'success');
+        
+        // 刷新状态
+        setTimeout(fetchSystemStatus, 500);
+    } catch (e) {
+        console.error("关闭系统失败", e);
+        showRequestStatus(`关闭失败: ${url}`, 'error');
+        showMessage("关闭系统失败: " + e.message, "error");
+        addOperationLog('system', 'shutdown', '系统关闭失败', 'error');
     }
 }
 
 /**
- * 显示设备详情
- * @param {Object} device - 设备对象
+ * 紧急停止
  */
-function displayDeviceDetail(device) {
-    const noSelection = document.getElementById('noDeviceSelected');
-    const deviceDetail = document.getElementById('deviceDetail');
+async function emergencyStop() {
+    if (!confirm('确定要执行紧急停止吗？这将立即关闭所有电源！')) return;
     
-    noSelection.style.display = 'none';
-    deviceDetail.style.display = 'block';
+    const url = `${API_BASE}/api/emergency/stop`;
+    showRequestStatus(`请求: ${url} ...`, 'info');
+
+    try {
+        const res = await fetch(url, { method: "POST" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        showRequestStatus(`急停成功: ${url}`, 'success');
+        showMessage(data.message || "已发送急停指令", "warning");
+        
+        addOperationLog('system', 'emergency', '紧急停止', 'warning');
+        
+        // 刷新状态
+        setTimeout(fetchSystemStatus, 500);
+    } catch (e) {
+        console.error("急停失败", e);
+        showRequestStatus(`急停失败: ${url}`, 'error');
+        showMessage("急停失败: " + e.message, "error");
+        addOperationLog('system', 'emergency', '紧急停止失败', 'error');
+    }
+}
+
+/**
+ * 设置电压
+ */
+async function setVoltage(voltage) {
+    const url = `${API_BASE}/api/power/set_voltage`;
+    showRequestStatus(`请求: ${url} ...`, 'info');
+
+    try {
+        const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ voltage_kv: voltage })
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        showRequestStatus(`电压设置成功: ${url}`, 'success');
+        showMessage(data.message || `电压已设置为 ${voltage} kV`, "success");
+        
+        addOperationLog('power', 'set_voltage', `设置电压: ${voltage} kV`, 'success');
+        
+        // 刷新状态
+        setTimeout(fetchSystemStatus, 500);
+    } catch (e) {
+        console.error("设置电压失败", e);
+        showRequestStatus(`电压设置失败: ${url}`, 'error');
+        showMessage("设置电压失败: " + e.message, "error");
+        addOperationLog('power', 'set_voltage', `设置电压失败: ${voltage} kV`, 'error');
+    }
+}
+
+/**
+ * 开启高压
+ */
+async function enablePower() {
+    const url = `${API_BASE}/api/power/enable`;
+    showRequestStatus(`请求: ${url} ...`, 'info');
+
+    try {
+        const res = await fetch(url, { method: "POST" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        showRequestStatus(`开启成功: ${url}`, 'success');
+        showMessage(data.message || "高压已开启", "success");
+        
+        addOperationLog('power', 'enable', '开启高压', 'success');
+        
+        // 刷新状态
+        setTimeout(fetchSystemStatus, 500);
+    } catch (e) {
+        console.error("开启高压失败", e);
+        showRequestStatus(`开启失败: ${url}`, 'error');
+        showMessage("开启高压失败: " + e.message, "error");
+        addOperationLog('power', 'enable', '开启高压失败', 'error');
+    }
+}
+
+/**
+ * 关闭高压
+ */
+async function disablePower() {
+    const url = `${API_BASE}/api/power/disable`;
+    showRequestStatus(`请求: ${url} ...`, 'info');
+
+    try {
+        const res = await fetch(url, { method: "POST" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        showRequestStatus(`关闭成功: ${url}`, 'success');
+        showMessage(data.message || "高压已关闭", "success");
+        
+        addOperationLog('power', 'disable', '关闭高压', 'success');
+        
+        // 刷新状态
+        setTimeout(fetchSystemStatus, 500);
+    } catch (e) {
+        console.error("关闭高压失败", e);
+        showRequestStatus(`关闭失败: ${url}`, 'error');
+        showMessage("关闭高压失败: " + e.message, "error");
+        addOperationLog('power', 'disable', '关闭高压失败', 'error');
+    }
+}
+
+/**
+ * 开始电压探索
+ */
+async function startExploration() {
+    const minVoltage = parseFloat(document.getElementById('minVoltage').value);
+    const maxVoltage = parseFloat(document.getElementById('maxVoltage').value);
+    const voltageStep = parseFloat(document.getElementById('voltageStep').value);
+    const waitTime = parseFloat(document.getElementById('waitTime').value);
+
+    if (isNaN(minVoltage) || isNaN(maxVoltage) || isNaN(voltageStep) || isNaN(waitTime)) {
+        showMessage('请填写有效的电压与时间参数', 'error');
+        return;
+    }
+    if (minVoltage >= maxVoltage) {
+        showMessage('最小电压必须小于最大电压', 'error');
+        return;
+    }
+    if (voltageStep <= 0) {
+        showMessage('电压步长必须大于 0', 'error');
+        return;
+    }
+    if (waitTime < 0.15 || waitTime > 10) {
+        showMessage('等待时间建议在 0.15～10 秒之间', 'error');
+        return;
+    }
     
-    // 更新设备基本信息
-    document.getElementById('deviceName').textContent = device.name;
-    document.getElementById('deviceId').textContent = device.id;
-    document.getElementById('deviceGroup').textContent = device.group;
-    document.getElementById('deviceLastOnline').textContent = device.lastOnline;
+    const url = `${API_BASE}/api/control/exploration/start`;
+    showRequestStatus(`请求: ${url} ...`, 'info');
+
+    try {
+        const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                min_voltage: minVoltage,
+                max_voltage: maxVoltage,
+                voltage_step: voltageStep,
+                wait_time: waitTime,
+                confidence_threshold: 0.1
+            })
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        showRequestStatus(`探索启动成功: ${url}`, 'success');
+        showMessage(data.message || "电压探索已启动", "success");
+        
+        addOperationLog('control', 'exploration_start', `开始电压探索: ${minVoltage}-${maxVoltage}kV`, 'success');
+        
+        // 更新按钮状态
+        document.getElementById('startExplorationBtn').disabled = true;
+        document.getElementById('stopExplorationBtn').disabled = false;
+        
+        // 刷新状态和模式列表
+        setTimeout(() => {
+            fetchSystemStatus();
+            loadModesList();
+        }, 500);
+    } catch (e) {
+        console.error("启动探索失败", e);
+        showRequestStatus(`探索启动失败: ${url}`, 'error');
+        showMessage("启动探索失败: " + e.message, "error");
+        addOperationLog('control', 'exploration_start', '启动探索失败', 'error');
+    }
+}
+
+/**
+ * 停止电压探索
+ */
+async function stopExploration() {
+    const url = `${API_BASE}/api/control/exploration/stop`;
+    showRequestStatus(`请求: ${url} ...`, 'info');
+
+    try {
+        const res = await fetch(url, { method: "POST" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        showRequestStatus(`探索停止成功: ${url}`, 'success');
+        showMessage(data.message || "电压探索已停止", "success");
+        
+        addOperationLog('control', 'exploration_stop', '停止电压探索', 'success');
+        
+        // 更新按钮状态
+        document.getElementById('startExplorationBtn').disabled = false;
+        document.getElementById('stopExplorationBtn').disabled = true;
+        
+        // 刷新状态和模式列表
+        setTimeout(() => {
+            fetchSystemStatus();
+            loadModesList();
+        }, 500);
+    } catch (e) {
+        console.error("停止探索失败", e);
+        showRequestStatus(`探索停止失败: ${url}`, 'error');
+        showMessage("停止探索失败: " + e.message, "error");
+        addOperationLog('control', 'exploration_stop', '停止探索失败', 'error');
+        // 失败时恢复按钮状态，避免界面卡死
+        const startBtn = document.getElementById('startExplorationBtn');
+        const stopBtn = document.getElementById('stopExplorationBtn');
+        if (startBtn) startBtn.disabled = false;
+        if (stopBtn) stopBtn.disabled = true;
+    }
+}
+
+/**
+ * 开始目标控制
+ */
+async function startTargetControl() {
+    const targetMode = (document.getElementById('targetModeSelect').value || '').trim();
+    if (!targetMode) {
+        showMessage('请先选择目标模式（完成电压探索后刷新模式列表）', 'error');
+        return;
+    }
+
+    const url = `${API_BASE}/api/control/target/start`;
+    showRequestStatus(`请求: ${url} ...`, 'info');
+
+    try {
+        const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                target_mode: targetMode
+            })
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            const msg = data.detail || data.message || `HTTP ${res.status}`;
+            throw new Error(msg);
+        }
+
+        showRequestStatus(`目标控制启动成功: ${url}`, 'success');
+        showMessage(data.message || `目标控制已启动: ${targetMode}`, "success");
+        
+        addOperationLog('control', 'target_start', `开始目标控制: ${targetMode}`, 'success');
+        
+        // 更新按钮状态
+        document.getElementById('startTargetControlBtn').disabled = true;
+        document.getElementById('stopTargetControlBtn').disabled = false;
+        
+        // 刷新状态
+        setTimeout(fetchSystemStatus, 500);
+    } catch (e) {
+        console.error("启动目标控制失败", e);
+        showRequestStatus(`目标控制启动失败: ${url}`, 'error');
+        showMessage("启动目标控制失败: " + (e.message || String(e)), "error");
+        addOperationLog('control', 'target_start', '启动目标控制失败: ' + (e.message || ''), 'error');
+    }
+}
+
+/**
+ * 停止目标控制
+ */
+async function stopTargetControl() {
+    const url = `${API_BASE}/api/control/target/stop`;
+    showRequestStatus(`请求: ${url} ...`, 'info');
+
+    try {
+        const res = await fetch(url, { method: "POST" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        showRequestStatus(`目标控制停止成功: ${url}`, 'success');
+        showMessage(data.message || "目标控制已停止", "success");
+        
+        addOperationLog('control', 'target_stop', '停止目标控制', 'success');
+        
+        // 更新按钮状态
+        document.getElementById('startTargetControlBtn').disabled = false;
+        document.getElementById('stopTargetControlBtn').disabled = true;
+        
+        // 刷新状态
+        setTimeout(fetchSystemStatus, 500);
+    } catch (e) {
+        console.error("停止目标控制失败", e);
+        showRequestStatus(`目标控制停止失败: ${url}`, 'error');
+        showMessage("停止目标控制失败: " + e.message, "error");
+        addOperationLog('control', 'target_stop', '停止目标控制失败', 'error');
+    }
+}
+
+// ==================== UI 更新 ====================
+
+/**
+ * 更新状态UI - 包含GUI中的所有状态字段
+ */
+function updateStatusUI(data) {
+    // 系统状态
+    const systemRunning = data.system?.running || false;
+    const onlineCountEl = document.getElementById("onlineCount");
+    if (onlineCountEl) {
+        onlineCountEl.textContent = systemRunning ? "运行中" : "未运行";
+    }
     
-    // 更新状态徽章
-    const statusBadge = document.getElementById('deviceStatusBadge');
-    statusBadge.className = `device-status-badge ${device.status}`;
-    statusBadge.innerHTML = `
-        <i class="fas fa-circle"></i> ${device.status === 'online' ? '在线' : '离线'}
-    `;
+    // 电压值
+    const voltage = data.power?.voltage_kv || 0.0;
+    const voltageValueEl = document.getElementById("voltageValue");
+    if (voltageValueEl) {
+        voltageValueEl.textContent = voltage.toFixed(1);
+    }
     
-    // 更新运行状态
-    const runStatus = document.getElementById('deviceRunStatus');
-    runStatus.textContent = device.runStatus === 'running' ? '运行中' : '已停止';
-    runStatus.className = device.runStatus === 'running' ? 'status-running' : 'status-stopped';
+    // 电源状态
+    const powerEnabled = data.power?.connected || false;
+    const powerStatusEl = document.getElementById("powerStatus");
+    if (powerStatusEl) {
+        powerStatusEl.textContent = powerEnabled ? "已开启" : "已关闭";
+    }
     
-    // 更新参数设置表单
-    updateSettingsForm(device.settings);
+    // 检测状态
+    const detectionActive = data.detection?.active || false;
+    const detectionStatusEl = document.getElementById("detectionStatus");
+    if (detectionStatusEl) {
+        detectionStatusEl.textContent = detectionActive ? "激活" : "未激活";
+    }
+    
+    // 更新时间
+    const lastUpdateEl = document.getElementById("lastUpdateTime");
+    if (lastUpdateEl) {
+        lastUpdateEl.textContent = `最后更新：${new Date().toLocaleTimeString("zh-CN")}`;
+    }
+    
+    // 更新详细状态（如果存在对应的DOM元素）
+    updateDetailedStatus(data);
     
     // 更新控制按钮状态
-    updateControlButtons(device);
+    updateControlButtons(data);
 }
 
 /**
- * 更新设置表单
- * @param {Object} settings - 设备设置
+ * 更新详细状态信息（GUI中的所有状态字段）
  */
-function updateSettingsForm(settings) {
-    document.getElementById('devicePower').value = settings.power;
-    document.getElementById('powerValue').textContent = `${settings.power}%`;
-    document.getElementById('deviceSpeed').value = settings.speed;
-    document.getElementById('deviceMode').value = settings.mode;
-    document.getElementById('deviceInterval').value = settings.interval;
-    document.getElementById('deviceAutoRestart').checked = settings.autoRestart;
+function updateDetailedStatus(data) {
+    // 连接状态
+    const connected = data.power?.connected ? "已连接" : "未连接";
+    updateStatusField("connectionStatus", connected);
+    
+    // 控制权状态
+    const controlAcquired = data.power?.control_acquired ? "已获取" : "未获取";
+    updateStatusField("controlAuthorityStatus", controlAcquired);
+    
+    // 当前电压
+    const voltage = (data.power?.voltage_kv || 0.0).toFixed(1);
+    updateStatusField("currentVoltage", `${voltage} kV`);
+    
+    // 当前电流
+    const current = (data.power?.current_ma || 0.0).toFixed(3);
+    updateStatusField("currentCurrent", `${current} mA`);
+    
+    // 最后成功时间
+    const lastSuccess = data.power?.last_successful_command 
+        ? new Date(data.power.last_successful_command * 1000).toLocaleTimeString("zh-CN")
+        : "无";
+    updateStatusField("lastSuccessTime", lastSuccess);
+    
+    // 检测连接数
+    const detectionClients = data.detection?.clients || 0;
+    updateStatusField("detectionConnections", detectionClients.toString());
+    
+    // 当前阶段
+    const currentStage = data.phase?.current_stage || "待开始";
+    updateStatusField("currentStage", currentStage);
+    
+    // 系统模式
+    const systemMode = data.phase?.system_mode || "空闲";
+    updateStatusField("systemMode", systemMode);
+    
+    // 目标模式
+    const targetMode = data.control?.target_mode || "None";
+    updateStatusField("targetMode", targetMode);
+    
+    // 当前模式
+    const currentMode = data.control?.current_mode || "---";
+    updateStatusField("currentMode", currentMode);
+    
+    // 目标电压
+    const targetVoltage = data.control?.target_voltage 
+        ? `${data.control.target_voltage.toFixed(1)} kV`
+        : "---";
+    updateStatusField("targetVoltage", targetVoltage);
+    
+    // 模式误差
+    const modeError = data.control?.mode_error !== null && data.control?.mode_error !== undefined
+        ? data.control.mode_error.toFixed(2)
+        : "---";
+    updateStatusField("modeError", modeError);
+    
+    // 调整量
+    const adjustment = data.control?.adjustment !== null && data.control?.adjustment !== undefined
+        ? `${data.control.adjustment.toFixed(3)} kV`
+        : "---";
+    updateStatusField("adjustment", adjustment);
+    
+    // 控制迭代
+    const controlIteration = data.control?.control_iteration || 0;
+    updateStatusField("controlIteration", controlIteration.toString());
+    
+    // 已识别模式数
+    const modeCount = data.control?.mode_count || 0;
+    updateStatusField("recognizedModeCount", modeCount.toString());
+    
+    // 稳定性计数
+    const stabilityCount = data.control?.stability_count !== null && data.control?.stability_count !== undefined
+        ? data.control.stability_count.toString()
+        : "---";
+    updateStatusField("stabilityCount", stabilityCount);
+    
+    // 高压电源输出
+    const outputVoltage = (data.power?.voltage_kv || 0.0).toFixed(2);
+    updateStatusField("outputVoltage", `${outputVoltage} kV`);
+    
+    const outputCurrent = (data.power?.current_ma || 0.0).toFixed(3);
+    updateStatusField("outputCurrent", `${outputCurrent} mA`);
+    
+    // 检测结果
+    if (data.detection?.latest_detection) {
+        const detection = data.detection.latest_detection;
+        updateStatusField("modeName", detection.detected_mode || "---");
+        updateStatusField("confidence", detection.confidence 
+            ? detection.confidence.toFixed(2) 
+            : "---");
+        
+        if (detection.timestamp) {
+            const detectionTime = new Date(detection.timestamp * 1000).toLocaleTimeString("zh-CN");
+            updateStatusField("detectionTime", detectionTime);
+        } else {
+            updateStatusField("detectionTime", "---");
+        }
+    } else {
+        updateStatusField("modeName", "---");
+        updateStatusField("confidence", "---");
+        updateStatusField("detectionTime", "---");
+    }
+}
+
+/**
+ * 更新状态字段（辅助函数）
+ */
+function updateStatusField(fieldId, value) {
+    const element = document.getElementById(fieldId);
+    if (element) {
+        element.textContent = value;
+    }
 }
 
 /**
  * 更新控制按钮状态
- * @param {Object} device - 设备对象
  */
-function updateControlButtons(device) {
-    const startBtn = document.getElementById('startDeviceBtn');
-    const stopBtn = document.getElementById('stopDeviceBtn');
-    const restartBtn = document.getElementById('restartDeviceBtn');
+function updateControlButtons(data) {
+    const systemRunning = data.system?.running || false;
+    const exploring = data.system?.exploration_active || false;
+    const controlling = data.system?.control_enabled || false;
     
-    // 根据设备状态和在线状态启用/禁用按钮
-    const isOnline = device.status === 'online';
-    const isRunning = device.runStatus === 'running';
+    // 探索按钮
+    const startExplorationBtn = document.getElementById('startExplorationBtn');
+    const stopExplorationBtn = document.getElementById('stopExplorationBtn');
+    if (startExplorationBtn && stopExplorationBtn) {
+        startExplorationBtn.disabled = exploring;
+        stopExplorationBtn.disabled = !exploring;
+    }
     
-    startBtn.disabled = !isOnline || isRunning;
-    stopBtn.disabled = !isOnline || !isRunning;
-    restartBtn.disabled = !isOnline;
+    // 目标控制按钮
+    const startTargetControlBtn = document.getElementById('startTargetControlBtn');
+    const stopTargetControlBtn = document.getElementById('stopTargetControlBtn');
+    if (startTargetControlBtn && stopTargetControlBtn) {
+        startTargetControlBtn.disabled = controlling;
+        stopTargetControlBtn.disabled = !controlling;
+    }
+}
+
+// ==================== 高压电源连接 ====================
+
+/**
+ * 连接高压电源
+ */
+async function connectHvPower() {
+    // 通过初始化系统来连接
+    await initSystem();
 }
 
 /**
- * 初始化设备控制功能
+ * 断开高压电源
  */
-function initDeviceControl() {
-    const startBtn = document.getElementById('startDeviceBtn');
-    const stopBtn = document.getElementById('stopDeviceBtn');
-    const restartBtn = document.getElementById('restartDeviceBtn');
+async function disconnectHvPower() {
+    await shutdownSystem();
+}
+
+/**
+ * 测试连接
+ */
+async function testConnection() {
+    const url = `${API_BASE}/api/system/status`;
     
-    startBtn.addEventListener('click', function() {
-        if (selectedDevice) {
-            confirmOperation('启动设备', `确定要启动设备 "${selectedDevice.name}" 吗？`, () => {
-                controlDevice(selectedDevice.id, 'start');
+    try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        const connected = data.power?.connected || false;
+        
+        if (connected) {
+            showMessage("连接测试成功：高压电源已连接", "success");
+        } else {
+            showMessage("连接测试失败：高压电源未连接", "error");
+        }
+    } catch (e) {
+        console.error("测试连接失败", e);
+        showMessage("测试连接失败: " + e.message, "error");
+    }
+}
+
+/**
+ * 初始化高压电源连接
+ */
+function initHvPowerConnection() {
+    const connectBtn = document.getElementById('connectHvPowerBtn');
+    const disconnectBtn = document.getElementById('disconnectHvPowerBtn');
+    const testBtn = document.getElementById('testConnectionBtn');
+    
+    if (connectBtn) {
+        connectBtn.addEventListener('click', connectHvPower);
+    }
+    
+    if (disconnectBtn) {
+        disconnectBtn.addEventListener('click', disconnectHvPower);
+    }
+    
+    if (testBtn) {
+        testBtn.addEventListener('click', testConnection);
+    }
+}
+
+// ==================== 检测连接 ====================
+
+/**
+ * 测试检测连接
+ */
+async function testDetectionConnection() {
+    const url = `${API_BASE}/api/detection/test_connection`;
+    
+    try {
+        const res = await fetch(url, { method: "POST" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            showMessage(`检测连接测试成功：${data.clients}个客户端已连接`, "success");
+        } else {
+            showMessage("检测连接测试失败：没有活动的检测连接", "error");
+        }
+    } catch (e) {
+        console.error("测试检测连接失败", e);
+        showMessage("测试检测连接失败: " + e.message, "error");
+    }
+}
+
+/**
+ * 显示连接状态
+ */
+async function showConnectionStatus() {
+    const url = `${API_BASE}/api/detection/connection_status`;
+    
+    try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        
+        let message = `检测服务器状态: ${data.server_running ? '运行中' : '未运行'}\n`;
+        message += `检测连接数: ${data.clients}\n`;
+        
+        if (data.client_info && data.client_info.length > 0) {
+            message += "\n连接详情:\n";
+            data.client_info.forEach((client, index) => {
+                message += `  连接${index + 1}: ${client.address} (连接时间: ${client.connected_time})\n`;
             });
         }
-    });
-    
-    stopBtn.addEventListener('click', function() {
-        if (selectedDevice) {
-            confirmOperation('停止设备', `确定要停止设备 "${selectedDevice.name}" 吗？`, () => {
-                controlDevice(selectedDevice.id, 'stop');
-            });
-        }
-    });
-    
-    restartBtn.addEventListener('click', function() {
-        if (selectedDevice) {
-            confirmOperation('重启设备', `确定要重启设备 "${selectedDevice.name}" 吗？`, () => {
-                controlDevice(selectedDevice.id, 'restart');
-            });
-        }
-    });
+        
+        alert(message);
+    } catch (e) {
+        console.error("获取连接状态失败", e);
+        showMessage("获取连接状态失败: " + e.message, "error");
+    }
 }
 
 /**
- * 控制设备
- * @param {string} deviceId - 设备ID
- * @param {string} action - 操作类型：start, stop, restart
+ * 诊断连接问题
  */
-function controlDevice(deviceId, action) {
-    const device = devices.find(d => d.id === deviceId);
-    if (!device) return;
+async function diagnoseConnection() {
+    const url = `${API_BASE}/api/detection/diagnose`;
     
-    // 模拟操作延迟
-    showMessage(`正在${getActionName(action)}设备...`, 'info');
-    
-    setTimeout(() => {
-        // 更新设备状态
-        if (action === 'start') {
-            device.runStatus = 'running';
-        } else if (action === 'stop') {
-            device.runStatus = 'stopped';
-        } else if (action === 'restart') {
-            device.runStatus = 'stopped';
-            setTimeout(() => {
-                device.runStatus = 'running';
-                updateDeviceStatus();
-            }, 1000);
-        }
+    try {
+        const res = await fetch(url, { method: "POST" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         
-        // 保存设备数据
-        saveDevicesToStorage();
-        
-        // 更新UI
-        updateDeviceStatus();
-        if (selectedDevice && selectedDevice.id === deviceId) {
-            displayDeviceDetail(device);
-        }
-        
-        // 记录操作日志
-        addOperationLog(deviceId, device.name, action, 'success');
-        
-        showMessage(`设备${getActionName(action)}成功！`, 'success');
-    }, 1000);
+        const data = await res.json();
+        showMessage("诊断完成，请查看服务器日志", "info");
+    } catch (e) {
+        console.error("诊断连接失败", e);
+        showMessage("诊断连接失败: " + e.message, "error");
+    }
 }
 
 /**
- * 获取操作名称
- * @param {string} action - 操作类型
- * @returns {string} 操作名称
+ * 初始化检测连接
  */
-function getActionName(action) {
-    const names = {
-        start: '启动',
-        stop: '停止',
-        restart: '重启'
-    };
-    return names[action] || action;
+function initDetectionConnection() {
+    const testBtn = document.getElementById('testDetectionConnectionBtn');
+    const showStatusBtn = document.getElementById('showConnectionStatusBtn');
+    const diagnoseBtn = document.getElementById('diagnoseConnectionBtn');
+    
+    if (testBtn) {
+        testBtn.addEventListener('click', testDetectionConnection);
+    }
+    
+    if (showStatusBtn) {
+        showStatusBtn.addEventListener('click', showConnectionStatus);
+    }
+    
+    if (diagnoseBtn) {
+        diagnoseBtn.addEventListener('click', diagnoseConnection);
+    }
+}
+
+// ==================== 初始化功能 ====================
+
+/**
+ * 初始化系统控制
+ */
+function initSystemControls() {
+    const initBtn = document.getElementById('initSystemBtn');
+    const shutdownBtn = document.getElementById('shutdownSystemBtn');
+    const emergencyBtn = document.getElementById('emergencyStopBtn');
+    
+    if (initBtn) {
+        initBtn.addEventListener('click', initSystem);
+    }
+    
+    if (shutdownBtn) {
+        shutdownBtn.addEventListener('click', shutdownSystem);
+    }
+    
+    if (emergencyBtn) {
+        emergencyBtn.addEventListener('click', emergencyStop);
+    }
 }
 
 /**
- * 初始化设备设置功能
+ * 初始化电源控制
  */
-function initDeviceSettings() {
-    const settingsForm = document.getElementById('deviceSettingsForm');
-    const resetBtn = document.getElementById('resetSettingsBtn');
-    const powerSlider = document.getElementById('devicePower');
+function initPowerControls() {
+    const setVoltageBtn = document.getElementById('setVoltageBtn');
+    const enablePowerBtn = document.getElementById('enablePowerBtn');
+    const disablePowerBtn = document.getElementById('disablePowerBtn');
     
-    // 功率滑块实时显示
-    powerSlider.addEventListener('input', function() {
-        document.getElementById('powerValue').textContent = `${this.value}%`;
-    });
-    
-    // 表单提交
-    settingsForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        if (!selectedDevice) {
-            showMessage('请先选择一个设备！', 'warning');
-            return;
-        }
-        
-        // 获取表单数据
-        const settings = {
-            power: parseInt(document.getElementById('devicePower').value),
-            speed: document.getElementById('deviceSpeed').value,
-            mode: document.getElementById('deviceMode').value,
-            interval: parseInt(document.getElementById('deviceInterval').value),
-            autoRestart: document.getElementById('deviceAutoRestart').checked
-        };
-        
-        // 更新设备设置
-        selectedDevice.settings = settings;
-        saveDevicesToStorage();
-        
-        // 记录操作日志
-        addOperationLog(selectedDevice.id, selectedDevice.name, 'settings', 'success', '更新设备参数');
-        
-        showMessage('设备参数已保存！', 'success');
-    });
-    
-    // 重置按钮
-    resetBtn.addEventListener('click', function() {
-        if (selectedDevice) {
-            if (confirm('确定要重置为默认设置吗？')) {
-                updateSettingsForm(selectedDevice.settings);
+    if (setVoltageBtn) {
+        setVoltageBtn.addEventListener('click', function() {
+            const inputEl = document.getElementById('voltageInput');
+            if (!inputEl) return;
+            const voltage = parseFloat(inputEl.value);
+            if (isNaN(voltage) || voltage < 0 || voltage > 30) {
+                showMessage('请输入0-30之间的电压值', 'error');
+                return;
             }
-        }
-    });
+            setVoltage(voltage);
+        });
+    }
+    
+    if (enablePowerBtn) {
+        enablePowerBtn.addEventListener('click', enablePower);
+    }
+    
+    if (disablePowerBtn) {
+        disablePowerBtn.addEventListener('click', disablePower);
+    }
 }
 
 /**
- * 初始化操作日志功能
+ * 初始化控制模式
+ */
+function initControlModes() {
+    const startExplorationBtn = document.getElementById('startExplorationBtn');
+    const stopExplorationBtn = document.getElementById('stopExplorationBtn');
+    const startTargetControlBtn = document.getElementById('startTargetControlBtn');
+    const stopTargetControlBtn = document.getElementById('stopTargetControlBtn');
+    const refreshModesBtn = document.getElementById('refreshModesBtn');
+    
+    if (startExplorationBtn) {
+        startExplorationBtn.addEventListener('click', startExploration);
+    }
+    
+    if (stopExplorationBtn) {
+        stopExplorationBtn.disabled = true;
+        stopExplorationBtn.addEventListener('click', stopExploration);
+    }
+    
+    if (startTargetControlBtn) {
+        startTargetControlBtn.addEventListener('click', startTargetControl);
+    }
+    
+    if (stopTargetControlBtn) {
+        stopTargetControlBtn.disabled = true;
+        stopTargetControlBtn.addEventListener('click', stopTargetControl);
+    }
+    
+    if (refreshModesBtn) {
+        refreshModesBtn.addEventListener('click', loadModesList);
+    }
+    
+    // 初始加载模式列表
+    loadModesList();
+    
+    // 定期刷新模式列表（每10秒）
+    setInterval(loadModesList, 10000);
+}
+
+/**
+ * 加载模式列表
+ */
+async function loadModesList() {
+    const url = `${API_BASE}/api/control/modes`;
+    
+    try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        const targetModeSelect = document.getElementById('targetModeSelect');
+        if (!targetModeSelect) return;
+
+        // 无论 success 与否都更新下拉框，避免接口失败时残留旧数据
+        const currentValue = targetModeSelect.value;
+        targetModeSelect.innerHTML = '';
+
+        if (data.success && data.modes && data.modes.length > 0) {
+            // 与后端“已识别模式”一致：模式X: 名称, 电压:X.XkV (N次)
+            data.modes.forEach((mode) => {
+                const option = document.createElement('option');
+                option.value = mode.id;
+                const vol = (typeof mode.voltage === 'number' ? mode.voltage : Number(mode.voltage) || 0).toFixed(1);
+                const count = mode.count != null ? mode.count : 0;
+                const name = mode.name || '';
+                option.textContent = `模式${mode.id}: ${name}, 电压:${vol}kV (${count}次)`;
+                targetModeSelect.appendChild(option);
+            });
+            if (currentValue && Array.from(targetModeSelect.options).some(opt => opt.value === currentValue)) {
+                targetModeSelect.value = currentValue;
+            }
+        } else {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = '请先完成电压探索';
+            targetModeSelect.appendChild(option);
+        }
+    } catch (e) {
+        console.error('加载模式列表失败:', e);
+        const targetModeSelect = document.getElementById('targetModeSelect');
+        if (targetModeSelect) {
+            targetModeSelect.innerHTML = '';
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = '请先完成电压探索';
+            targetModeSelect.appendChild(option);
+        }
+    }
+}
+
+/**
+ * 初始化状态概览
+ */
+function initStatusOverview() {
+    const refreshBtn = document.getElementById('refreshStatusBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            fetchSystemStatus();
+            showMessage('已从服务器刷新状态', 'success');
+        });
+    }
+
+    // 初始获取
+    fetchSystemStatus();
+}
+
+/**
+ * 启动状态自动更新
+ */
+function startStatusUpdate() {
+    // 每5秒自动更新一次状态
+    statusUpdateInterval = setInterval(fetchSystemStatus, 5000);
+}
+
+/**
+ * 初始化操作日志
  */
 function initOperationLogs() {
     const clearLogsBtn = document.getElementById('clearLogsBtn');
     const exportLogsBtn = document.getElementById('exportLogsBtn');
     const filterType = document.getElementById('logFilterType');
-    const filterDevice = document.getElementById('logFilterDevice');
     
-    // 初始化设备筛选下拉框
-    updateDeviceFilter();
+    if (clearLogsBtn) {
+        clearLogsBtn.addEventListener('click', function() {
+            if (confirm('确定要清空所有日志吗？')) {
+                operationLogs = [];
+                renderLogs();
+                showMessage('日志已清空', 'success');
+            }
+        });
+    }
     
-    // 清空日志
-    clearLogsBtn.addEventListener('click', function() {
-        if (confirm('确定要清空所有日志吗？')) {
-            operationLogs = [];
-            localStorage.removeItem('controlSystemLogs');
-            renderLogs();
-            showMessage('日志已清空', 'success');
-        }
-    });
+    if (exportLogsBtn) {
+        exportLogsBtn.addEventListener('click', exportLogs);
+    }
     
-    // 导出日志
-    exportLogsBtn.addEventListener('click', function() {
-        exportLogs();
-    });
+    if (filterType) {
+        filterType.addEventListener('change', renderLogs);
+    }
     
-    // 筛选日志
-    filterType.addEventListener('change', renderLogs);
-    filterDevice.addEventListener('change', renderLogs);
-    
-    // 初始渲染日志
+    // 初始渲染
     renderLogs();
 }
 
 /**
- * 渲染操作日志
+ * 添加操作日志
+ */
+function addOperationLog(category, action, message, status) {
+    const log = {
+        id: Date.now(),
+        category: category,
+        action: action,
+        message: message,
+        status: status,
+        timestamp: new Date().toLocaleString('zh-CN')
+    };
+    
+    operationLogs.unshift(log);
+    
+    // 限制日志数量
+    if (operationLogs.length > 100) {
+        operationLogs = operationLogs.slice(0, 100);
+    }
+    
+    renderLogs();
+}
+
+/**
+ * 渲染日志列表
  */
 function renderLogs() {
     const logsContainer = document.getElementById('logsContainer');
-    const filterType = document.getElementById('logFilterType').value;
-    const filterDevice = document.getElementById('logFilterDevice').value;
+    if (!logsContainer) return;
+    
+    const filterType = document.getElementById('logFilterType')?.value || 'all';
     
     // 筛选日志
     let filteredLogs = operationLogs;
-    
     if (filterType !== 'all') {
-        filteredLogs = filteredLogs.filter(log => log.action === filterType);
+        filteredLogs = operationLogs.filter(log => log.action === filterType);
     }
     
-    if (filterDevice !== 'all') {
-        filteredLogs = filteredLogs.filter(log => log.deviceId === filterDevice);
-    }
-    
-    // 如果没有日志
     if (filteredLogs.length === 0) {
         logsContainer.innerHTML = '<div class="no-logs">暂无操作日志</div>';
         return;
     }
     
-    // 渲染日志列表
-    logsContainer.innerHTML = filteredLogs.map(log => `
+    const logsHTML = filteredLogs.map(log => `
         <div class="log-item ${log.status}">
             <div class="log-icon">
                 <i class="fas ${getLogIcon(log.action)}"></i>
             </div>
             <div class="log-content">
                 <div class="log-header">
-                    <span class="log-action">${getActionName(log.action)}</span>
-                    <span class="log-device">${log.deviceName}</span>
+                    <span class="log-action">${log.message}</span>
                 </div>
-                <div class="log-message">${log.message || ''}</div>
                 <div class="log-time">${log.timestamp}</div>
             </div>
             <div class="log-status">
-                <i class="fas ${log.status === 'success' ? 'fa-check-circle' : 'fa-times-circle'}"></i>
+                <i class="fas ${log.status === 'success' ? 'fa-check-circle' : log.status === 'error' ? 'fa-times-circle' : 'fa-exclamation-circle'}"></i>
             </div>
         </div>
     `).join('');
+    
+    logsContainer.innerHTML = logsHTML;
 }
 
 /**
  * 获取日志图标
- * @param {string} action - 操作类型
- * @returns {string} 图标类名
  */
 function getLogIcon(action) {
     const icons = {
-        start: 'fa-play-circle',
-        stop: 'fa-stop-circle',
-        restart: 'fa-redo',
-        settings: 'fa-cog'
+        init: 'fa-power-off',
+        shutdown: 'fa-stop',
+        emergency: 'fa-exclamation-triangle',
+        set_voltage: 'fa-bolt',
+        enable: 'fa-toggle-on',
+        disable: 'fa-toggle-off',
+        exploration_start: 'fa-play',
+        exploration_stop: 'fa-stop',
+        target_start: 'fa-play-circle',
+        target_stop: 'fa-stop-circle'
     };
     return icons[action] || 'fa-info-circle';
-}
-
-/**
- * 添加操作日志
- * @param {string} deviceId - 设备ID
- * @param {string} deviceName - 设备名称
- * @param {string} action - 操作类型
- * @param {string} status - 状态：success, error
- * @param {string} message - 日志消息
- */
-function addOperationLog(deviceId, deviceName, action, status, message) {
-    const log = {
-        id: Date.now(),
-        deviceId,
-        deviceName,
-        action,
-        status,
-        message: message || `${getActionName(action)}设备 "${deviceName}"`,
-        timestamp: new Date().toLocaleString('zh-CN')
-    };
-    
-    operationLogs.unshift(log);
-    
-    // 限制日志数量（最多500条）
-    if (operationLogs.length > 500) {
-        operationLogs = operationLogs.slice(0, 500);
-    }
-    
-    // 保存到本地存储
-    localStorage.setItem('controlSystemLogs', JSON.stringify(operationLogs));
-    
-    // 更新设备筛选下拉框
-    updateDeviceFilter();
-    
-    // 重新渲染日志
-    renderLogs();
-}
-
-/**
- * 更新设备筛选下拉框
- */
-function updateDeviceFilter() {
-    const filterDevice = document.getElementById('logFilterDevice');
-    const currentValue = filterDevice.value;
-    
-    // 获取所有唯一的设备ID和名称
-    const deviceMap = new Map();
-    operationLogs.forEach(log => {
-        if (!deviceMap.has(log.deviceId)) {
-            deviceMap.set(log.deviceId, log.deviceName);
-        }
-    });
-    
-    // 更新下拉框选项
-    filterDevice.innerHTML = '<option value="all">全部设备</option>';
-    deviceMap.forEach((name, id) => {
-        const option = document.createElement('option');
-        option.value = id;
-        option.textContent = name;
-        filterDevice.appendChild(option);
-    });
-    
-    // 恢复之前的选择
-    filterDevice.value = currentValue;
 }
 
 /**
@@ -663,170 +1076,85 @@ function exportLogs() {
         return;
     }
     
-    // 转换为CSV格式
     const csv = [
-        ['时间', '设备ID', '设备名称', '操作', '状态', '消息'].join(','),
+        ['时间', '类别', '操作', '消息', '状态'].join(','),
         ...operationLogs.map(log => [
             log.timestamp,
-            log.deviceId,
-            log.deviceName,
-            getActionName(log.action),
-            log.status === 'success' ? '成功' : '失败',
-            log.message || ''
+            log.category,
+            log.action,
+            log.message,
+            log.status
         ].join(','))
     ].join('\n');
     
-    // 创建下载链接
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `操作日志_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
+    link.href = URL.createObjectURL(blob);
+    link.download = `操作日志_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
-    document.body.removeChild(link);
-    
+    URL.revokeObjectURL(link.href);
     showMessage('日志导出成功！', 'success');
 }
 
+// ==================== UI 提示 ====================
+
 /**
- * 初始化状态概览
+ * 显示消息提示
  */
-function initStatusOverview() {
-    const refreshBtn = document.getElementById('refreshStatusBtn');
-    
-    refreshBtn.addEventListener('click', function() {
-        updateDeviceStatus();
-        showMessage('状态已刷新', 'success');
-    });
-    
-    // 初始更新
-    updateDeviceStatus();
+function showMessage(msg, type) {
+    // 使用全局的showMessage函数（如果存在）
+    if (typeof window.showMessage === 'function') {
+        window.showMessage(msg, type);
+    } else {
+        // 简单的alert提示
+        alert(`[${type.toUpperCase()}] ${msg}`);
+    }
 }
 
 /**
- * 更新设备状态统计
+ * 显示请求状态
  */
-function updateDeviceStatus() {
-    const onlineCount = devices.filter(d => d.status === 'online').length;
-    const offlineCount = devices.filter(d => d.status === 'offline').length;
-    const runningCount = devices.filter(d => d.runStatus === 'running').length;
-    const stoppedCount = devices.filter(d => d.runStatus === 'stopped').length;
-    
-    document.getElementById('onlineCount').textContent = onlineCount;
-    document.getElementById('offlineCount').textContent = offlineCount;
-    document.getElementById('runningCount').textContent = runningCount;
-    document.getElementById('stoppedCount').textContent = stoppedCount;
-    
-    // 更新最后更新时间
-    document.getElementById('lastUpdateTime').textContent = 
-        `最后更新：${new Date().toLocaleTimeString('zh-CN')}`;
-    
-    // 重新渲染设备树（更新状态显示）
-    renderDeviceTree();
-}
+function showRequestStatus(msg, type) {
+    let statusEl = document.getElementById("requestStatus");
+    if (!statusEl) {
+        statusEl = document.createElement("div");
+        statusEl.id = "requestStatus";
+        statusEl.style.cssText = `
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 9999;
+            max-width: 300px;
+            word-break: break-all;
+        `;
+        document.body.appendChild(statusEl);
+    }
 
-/**
- * 启动状态自动更新
- */
-function startStatusUpdate() {
-    // 每30秒自动更新一次状态
-    statusUpdateInterval = setInterval(() => {
-        // 模拟设备状态随机变化（实际项目中应从服务器获取）
-        simulateStatusChange();
-        updateDeviceStatus();
-    }, 30000);
-}
+    statusEl.textContent = msg;
 
-/**
- * 模拟设备状态变化（用于演示）
- */
-function simulateStatusChange() {
-    // 随机改变一些设备的在线状态（5%概率）
-    devices.forEach(device => {
-        if (Math.random() < 0.05) {
-            device.status = device.status === 'online' ? 'offline' : 'online';
-            device.lastOnline = new Date().toLocaleString('zh-CN');
-        }
-    });
-}
-
-/**
- * 添加设备分组
- * @param {string} groupName - 分组名称
- */
-function addDeviceGroup(groupName) {
-    // 检查分组是否已存在
-    const existingGroup = deviceGroups.find(g => g.name === groupName);
-    if (existingGroup) {
-        showMessage('分组已存在！', 'warning');
-        return;
+    if (type === "error") {
+        statusEl.style.background = "rgba(239, 68, 68, 0.9)";
+    } else if (type === "success") {
+        statusEl.style.background = "rgba(82, 196, 26, 0.9)";
+    } else {
+        statusEl.style.background = "rgba(59, 130, 246, 0.9)";
     }
     
-    // 添加新分组
-    deviceGroups.push({
-        name: groupName,
-        devices: []
-    });
-    
-    // 重新渲染设备树
-    renderDeviceTree();
-    
-    showMessage(`分组 "${groupName}" 已添加`, 'success');
-}
-
-/**
- * 初始化确认对话框
- */
-function initConfirmDialog() {
-    const dialog = document.getElementById('confirmDialog');
-    const closeBtn = document.getElementById('confirmDialogClose');
-    const cancelBtn = document.getElementById('confirmDialogCancel');
-    const confirmBtn = document.getElementById('confirmDialogConfirm');
-    
-    // 关闭对话框
-    function closeDialog() {
-        dialog.style.display = 'none';
-    }
-    
-    closeBtn.addEventListener('click', closeDialog);
-    cancelBtn.addEventListener('click', closeDialog);
-    
-    // 点击背景关闭
-    dialog.addEventListener('click', function(e) {
-        if (e.target === dialog) {
-            closeDialog();
+    // 3秒后自动隐藏
+    setTimeout(() => {
+        if (statusEl && statusEl.parentNode) {
+            statusEl.style.opacity = '0';
+            statusEl.style.transition = 'opacity 0.3s';
+            setTimeout(() => {
+                if (statusEl && statusEl.parentNode) {
+                    statusEl.parentNode.removeChild(statusEl);
+                }
+            }, 300);
         }
-    });
-}
-
-/**
- * 显示确认对话框
- * @param {string} title - 对话框标题
- * @param {string} message - 对话框消息
- * @param {Function} onConfirm - 确认回调函数
- */
-function confirmOperation(title, message, onConfirm) {
-    const dialog = document.getElementById('confirmDialog');
-    const titleEl = document.getElementById('confirmDialogTitle');
-    const messageEl = document.getElementById('confirmDialogMessage');
-    const confirmBtn = document.getElementById('confirmDialogConfirm');
-    
-    titleEl.textContent = title;
-    messageEl.textContent = message;
-    
-    // 移除之前的监听器
-    const newConfirmBtn = confirmBtn.cloneNode(true);
-    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-    
-    // 添加新的确认监听器
-    newConfirmBtn.addEventListener('click', function() {
-        dialog.style.display = 'none';
-        if (onConfirm) {
-            onConfirm();
-        }
-    });
-    
-    dialog.style.display = 'flex';
+    }, 3000);
 }

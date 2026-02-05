@@ -388,6 +388,60 @@
                     <p class="section-description">实时监控画面和检测结果</p>
                 </div>
                 
+                <!-- 检测系统视频流区域（新增） -->
+                <div id="detection-system-section" class="detection-system-container">
+                    <div class="detection-video-panel card">
+                        <h3><i class="fas fa-video"></i> 摄像头视频流</h3>
+                        <div class="video-stream-wrapper">
+                            <img id="detectionVideo" src="" alt="视频流" style="width: 100%; max-width: 1280px; height: auto; border: 2px solid var(--border-color); border-radius: 8px;">
+                            <div class="video-controls-bar">
+                                <button class="btn btn-success" id="startDetectionBtn">
+                                    <i class="fas fa-play"></i> 启动摄像头
+                                </button>
+                                <button class="btn btn-danger" id="stopDetectionBtn" disabled>
+                                    <i class="fas fa-stop"></i> 停止摄像头
+                                </button>
+                                <button class="btn btn-info" id="connectControlSystemBtn">
+                                    <i class="fas fa-link"></i> 连接控制系统
+                                </button>
+                                <button class="btn btn-secondary" id="refreshVideoStreamBtn">
+                                    <i class="fas fa-sync-alt"></i> 刷新视频流
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="detection-info-panel card">
+                        <h3><i class="fas fa-info-circle"></i> 检测信息</h3>
+                        <div class="detection-info-grid">
+                            <div class="info-item">
+                                <label>检测模式:</label>
+                                <span id="detectedMode">--</span>
+                            </div>
+                            <div class="info-item">
+                                <label>置信度:</label>
+                                <span id="detectionConfidence">--</span>
+                            </div>
+                            <div class="info-item">
+                                <label>检测时间:</label>
+                                <span id="detectionTimestamp">--</span>
+                            </div>
+                            <div class="info-item">
+                                <label>运行状态:</label>
+                                <span id="detectionRunningStatus">检查中...</span>
+                            </div>
+                            <div class="info-item">
+                                <label>当前FPS:</label>
+                                <span id="detectionFps">--</span>
+                            </div>
+                            <div class="info-item">
+                                <label>已接收帧数:</label>
+                                <span id="detectionFramesReceived">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="realtime-detection-container">
                     <!-- 主要内容区域 -->
                     <div class="detection-main">
@@ -683,6 +737,54 @@
                 </div>
                 
                 <div class="control-system-container">
+                    <!-- 高压电源连接面板 -->
+                    <div class="hv-power-connection-panel card">
+                        <h3><i class="fas fa-plug"></i> 高压电源连接</h3>
+                        <div class="connection-controls">
+                            <button class="btn btn-primary" id="connectHvPowerBtn">
+                                <i class="fas fa-link"></i> 连接高压电源
+                            </button>
+                            <button class="btn btn-secondary" id="disconnectHvPowerBtn">
+                                <i class="fas fa-unlink"></i> 断开连接
+                            </button>
+                            <button class="btn btn-info" id="testConnectionBtn">
+                                <i class="fas fa-check-circle"></i> 测试连接
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 检测连接测试面板 -->
+                    <div class="detection-connection-panel card">
+                        <h3><i class="fas fa-network-wired"></i> 检测连接测试</h3>
+                        <div class="detection-controls">
+                            <button class="btn btn-primary" id="testDetectionConnectionBtn">
+                                <i class="fas fa-vial"></i> 测试检测连接
+                            </button>
+                            <button class="btn btn-info" id="showConnectionStatusBtn">
+                                <i class="fas fa-info-circle"></i> 显示连接状态
+                            </button>
+                            <button class="btn btn-warning" id="diagnoseConnectionBtn">
+                                <i class="fas fa-stethoscope"></i> 诊断连接问题
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 系统控制面板 -->
+                    <div class="system-control-panel card">
+                        <h3><i class="fas fa-cog"></i> 系统控制</h3>
+                        <div class="system-controls">
+                            <button class="btn btn-primary" id="initSystemBtn">
+                                <i class="fas fa-power-off"></i> 初始化系统
+                            </button>
+                            <button class="btn btn-danger" id="shutdownSystemBtn">
+                                <i class="fas fa-stop"></i> 关闭系统
+                            </button>
+                            <button class="btn btn-warning" id="emergencyStopBtn">
+                                <i class="fas fa-exclamation-triangle"></i> 紧急停止
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- 设备状态概览 -->
                     <div class="status-overview card">
                         <h3><i class="fas fa-chart-line"></i> 设备状态概览</h3>
@@ -693,34 +795,34 @@
                                 </div>
                                 <div class="stat-info">
                                     <div class="stat-value" id="onlineCount">0</div>
-                                    <div class="stat-label">在线设备</div>
-                                </div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-icon offline">
-                                    <i class="fas fa-circle"></i>
-                                </div>
-                                <div class="stat-info">
-                                    <div class="stat-value" id="offlineCount">0</div>
-                                    <div class="stat-label">离线设备</div>
+                                    <div class="stat-label">系统状态</div>
                                 </div>
                             </div>
                             <div class="stat-item">
                                 <div class="stat-icon running">
-                                    <i class="fas fa-play-circle"></i>
+                                    <i class="fas fa-bolt"></i>
                                 </div>
                                 <div class="stat-info">
-                                    <div class="stat-value" id="runningCount">0</div>
-                                    <div class="stat-label">运行中</div>
+                                    <div class="stat-value" id="voltageValue">0.0</div>
+                                    <div class="stat-label">当前电压 (kV)</div>
                                 </div>
                             </div>
                             <div class="stat-item">
-                                <div class="stat-icon stopped">
-                                    <i class="fas fa-stop-circle"></i>
+                                <div class="stat-icon active">
+                                    <i class="fas fa-play-circle"></i>
                                 </div>
                                 <div class="stat-info">
-                                    <div class="stat-value" id="stoppedCount">0</div>
-                                    <div class="stat-label">已停止</div>
+                                    <div class="stat-value" id="powerStatus">关闭</div>
+                                    <div class="stat-label">电源状态</div>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon alerts">
+                                    <i class="fas fa-eye"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <div class="stat-value" id="detectionStatus">未激活</div>
+                                    <div class="stat-label">检测状态</div>
                                 </div>
                             </div>
                         </div>
@@ -729,6 +831,86 @@
                                 <i class="fas fa-sync-alt"></i> 刷新状态
                             </button>
                             <span class="last-update" id="lastUpdateTime">最后更新：--</span>
+                        </div>
+                    </div>
+
+                    <!-- 电源控制面板 -->
+                    <div class="power-control-panel card">
+                        <h3><i class="fas fa-bolt"></i> 电源控制</h3>
+                        <div class="power-controls">
+                            <div class="voltage-control">
+                                <label for="voltageInput">设置电压 (kV):</label>
+                                <div class="voltage-input-group">
+                                    <input type="number" id="voltageInput" min="0" max="30" step="0.1" value="0" class="voltage-input">
+                                    <button class="btn btn-primary" id="setVoltageBtn">
+                                        <i class="fas fa-check"></i> 设置
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="power-buttons">
+                                <button class="btn btn-success" id="enablePowerBtn">
+                                    <i class="fas fa-power-off"></i> 开启高压
+                                </button>
+                                <button class="btn btn-danger" id="disablePowerBtn">
+                                    <i class="fas fa-power-off"></i> 关闭高压
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 控制模式面板 -->
+                    <div class="control-mode-panel card">
+                        <h3><i class="fas fa-sliders-h"></i> 控制模式</h3>
+                        <div class="mode-controls">
+                            <div class="mode-section">
+                                <h4>电压探索</h4>
+                                <div class="exploration-controls">
+                                    <div class="form-row">
+                                        <label>最小电压:</label>
+                                        <input type="number" id="minVoltage" min="0" max="30" step="0.1" value="0" class="form-input-small">
+                                    </div>
+                                    <div class="form-row">
+                                        <label>最大电压:</label>
+                                        <input type="number" id="maxVoltage" min="0" max="30" step="0.1" value="20" class="form-input-small">
+                                    </div>
+                                    <div class="form-row">
+                                        <label>步进:</label>
+                                        <input type="number" id="voltageStep" min="0.1" max="5" step="0.1" value="0.5" class="form-input-small">
+                                    </div>
+                                    <div class="form-row">
+                                        <label>等待时间:</label>
+                                        <input type="number" id="waitTime" min="0.1" max="10" step="0.1" value="1.0" class="form-input-small">
+                                    </div>
+                                    <div class="mode-buttons">
+                                        <button class="btn btn-primary" id="startExplorationBtn">
+                                            <i class="fas fa-play"></i> 开始探索
+                                        </button>
+                                        <button class="btn btn-danger" id="stopExplorationBtn">
+                                            <i class="fas fa-stop"></i> 停止探索
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mode-section">
+                                <h4>目标控制</h4>
+                                <div class="target-controls">
+                                    <label for="targetModeSelect">目标模式:</label>
+                                    <select id="targetModeSelect" class="form-select">
+                                        <option value="">请先完成电压探索</option>
+                                    </select>
+                                    <button class="btn btn-sm btn-secondary" id="refreshModesBtn" style="margin-top: 8px;">
+                                        <i class="fas fa-sync-alt"></i> 刷新模式列表
+                                    </button>
+                                    <div class="mode-buttons">
+                                        <button class="btn btn-primary" id="startTargetControlBtn">
+                                            <i class="fas fa-play"></i> 开始控制
+                                        </button>
+                                        <button class="btn btn-danger" id="stopTargetControlBtn">
+                                            <i class="fas fa-stop"></i> 停止控制
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1109,5 +1291,6 @@
     <script src="js/modules/realtimeRecords.js"></script>
     <script src="js/modules/profile.js"></script>
     <script src="js/modules/controlSystem.js"></script>
+    <script src="js/modules/detectionSystem.js"></script>
 </body>
 </html>
