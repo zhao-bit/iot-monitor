@@ -84,11 +84,34 @@
     <main class="main-content">
         <div class="container">
             <!-- 板块1：图片识别 -->
-            <section id="image-recognition" class="section active">
+            <section id="image-recognition" class="section active hud-theme">
                 <div class="section-header">
                     <h1><i class="fas fa-image"></i> 图片识别</h1>
                     <p class="section-description">上传图片或使用摄像头拍摄，进行AI智能识别</p>
                 </div>
+
+                <!-- HUD 叠加层（图片识别专用） -->
+                <div class="image-hud-overlay">
+                    <div class="hud-counters">
+                        <div class="hud-item">FRAME: <span id="imageHudFrame">00000</span></div>
+                        <div class="hud-item">BITRATE: <span id="imageHudBitrate">0.0 MB/s</span></div>
+                        <div class="hud-item">ENGINE: <span>VISION-AI v3.8.2</span></div>
+                    </div>
+                    <div class="hud-rec">
+                        <span class="rec-dot"></span>
+                        <span>REC</span>
+                    </div>
+                    <div class="hud-threat">
+                        <span>THREAT LEVEL</span>
+                        <div class="threat-bar">
+                            <span class="threat-fill" id="imageThreatFill"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 十六进制数据流 -->
+                <div class="image-hex-stream image-hex-left" id="imageHexLeft"></div>
+                <div class="image-hex-stream image-hex-right" id="imageHexRight"></div>
                 
                 <div class="image-recognition-container">
                     <!-- 上传区域 -->
@@ -179,11 +202,34 @@
             </section>
 
             <!-- 板块2：识别记录 -->
-            <section id="recognition-records" class="section">
+            <section id="recognition-records" class="section hud-theme">
                 <div class="section-header">
                     <h1><i class="fas fa-history"></i> 识别记录</h1>
                     <p class="section-description">查看历史图片识别结果</p>
                 </div>
+
+                <!-- HUD 叠加层（识别记录专用） -->
+                <div class="records-hud-overlay">
+                    <div class="hud-counters">
+                        <div class="hud-item">FRAME: <span id="recordsHudFrame">00000</span></div>
+                        <div class="hud-item">BITRATE: <span id="recordsHudBitrate">0.0 MB/s</span></div>
+                        <div class="hud-item">ENGINE: <span>VISION-AI v3.8.2</span></div>
+                    </div>
+                    <div class="hud-rec">
+                        <span class="rec-dot"></span>
+                        <span>REC</span>
+                    </div>
+                    <div class="hud-threat">
+                        <span>THREAT LEVEL</span>
+                        <div class="threat-bar">
+                            <span class="threat-fill" id="recordsThreatFill"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 十六进制数据流 -->
+                <div class="records-hex-stream records-hex-left" id="recordsHexLeft"></div>
+                <div class="records-hex-stream records-hex-right" id="recordsHexRight"></div>
                 
                 <div class="recognition-records-container">
                     <!-- 工具栏：搜索、筛选、批量操作 -->
@@ -265,11 +311,34 @@
             </section>
 
             <!-- 板块3：视频识别 -->
-            <section id="video-recognition" class="section">
+            <section id="video-recognition" class="section hud-theme">
                 <div class="section-header">
                     <h1><i class="fas fa-video"></i> 视频识别</h1>
                     <p class="section-description">上传视频或实时视频流识别</p>
                 </div>
+
+                <!-- HUD 叠加层（视频识别专用） -->
+                <div class="video-hud-overlay">
+                    <div class="hud-counters">
+                        <div class="hud-item">FRAME: <span id="videoHudFrame">00000</span></div>
+                        <div class="hud-item">BITRATE: <span id="videoHudBitrate">0.0 MB/s</span></div>
+                        <div class="hud-item">ENGINE: <span>VISION-AI v3.8.2</span></div>
+                    </div>
+                    <div class="hud-rec">
+                        <span class="rec-dot"></span>
+                        <span>REC</span>
+                    </div>
+                    <div class="hud-threat">
+                        <span>THREAT LEVEL</span>
+                        <div class="threat-bar">
+                            <span class="threat-fill" id="videoThreatFill"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 十六进制数据流 -->
+                <div class="video-hex-stream video-hex-left" id="videoHexLeft"></div>
+                <div class="video-hex-stream video-hex-right" id="videoHexRight"></div>
                 
                 <div class="video-recognition-container">
                     <!-- 左侧：视频播放区域 -->
@@ -340,11 +409,34 @@
             </section>
 
             <!-- 板块4：视频记录 -->
-            <section id="video-records" class="section">
+            <section id="video-records" class="section hud-theme">
                 <div class="section-header">
                     <h1><i class="fas fa-film"></i> 视频记录</h1>
                     <p class="section-description">查看历史视频识别记录</p>
                 </div>
+
+                <!-- HUD 叠加层（视频记录专用） -->
+                <div class="video-records-hud-overlay">
+                    <div class="hud-counters">
+                        <div class="hud-item">FRAME: <span id="videoRecordsHudFrame">00000</span></div>
+                        <div class="hud-item">BITRATE: <span id="videoRecordsHudBitrate">0.0 MB/s</span></div>
+                        <div class="hud-item">ENGINE: <span>VISION-AI v3.8.2</span></div>
+                    </div>
+                    <div class="hud-rec">
+                        <span class="rec-dot"></span>
+                        <span>REC</span>
+                    </div>
+                    <div class="hud-threat">
+                        <span>THREAT LEVEL</span>
+                        <div class="threat-bar">
+                            <span class="threat-fill" id="videoRecordsThreatFill"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 十六进制数据流 -->
+                <div class="video-records-hex-stream video-records-hex-left" id="videoRecordsHexLeft"></div>
+                <div class="video-records-hex-stream video-records-hex-right" id="videoRecordsHexRight"></div>
                 
                 <div class="video-records-container">
                     <!-- 工具栏 -->
@@ -382,11 +474,34 @@
             </section>
 
             <!-- 板块5：实时检测 -->
-            <section id="realtime-detection" class="section">
+            <section id="realtime-detection" class="section hud-theme">
                 <div class="section-header">
                     <h1><i class="fas fa-eye"></i> 实时检测</h1>
                     <p class="section-description">实时监控画面和检测结果</p>
                 </div>
+
+                <!-- HUD 叠加层（实时检测专用） -->
+                <div class="realtime-hud-overlay">
+                    <div class="hud-counters">
+                        <div class="hud-item">FRAME: <span id="realtimeHudFrame">00000</span></div>
+                        <div class="hud-item">BITRATE: <span id="realtimeHudBitrate">0.0 MB/s</span></div>
+                        <div class="hud-item">ENGINE: <span>VISION-AI v3.8.2</span></div>
+                    </div>
+                    <div class="hud-rec">
+                        <span class="rec-dot"></span>
+                        <span>REC</span>
+                    </div>
+                    <div class="hud-threat">
+                        <span>THREAT LEVEL</span>
+                        <div class="threat-bar">
+                            <span class="threat-fill" id="realtimeThreatFill"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 十六进制数据流 -->
+                <div class="realtime-hex-stream realtime-hex-left" id="realtimeHexLeft"></div>
+                <div class="realtime-hex-stream realtime-hex-right" id="realtimeHexRight"></div>
                 
                 <div class="realtime-detection-container">
                     <!-- 主要内容区域 -->
@@ -593,11 +708,34 @@
             </section>
 
             <!-- 板块6：实时记录 -->
-            <section id="realtime-records" class="section">
+            <section id="realtime-records" class="section hud-theme">
                 <div class="section-header">
                     <h1><i class="fas fa-clock"></i> 实时记录</h1>
                     <p class="section-description">实时检测的历史记录</p>
                 </div>
+
+                <!-- HUD 叠加层（实时记录专用） -->
+                <div class="realtime-records-hud-overlay">
+                    <div class="hud-counters">
+                        <div class="hud-item">FRAME: <span id="realtimeRecordsHudFrame">00000</span></div>
+                        <div class="hud-item">BITRATE: <span id="realtimeRecordsHudBitrate">0.0 MB/s</span></div>
+                        <div class="hud-item">ENGINE: <span>VISION-AI v3.8.2</span></div>
+                    </div>
+                    <div class="hud-rec">
+                        <span class="rec-dot"></span>
+                        <span>REC</span>
+                    </div>
+                    <div class="hud-threat">
+                        <span>THREAT LEVEL</span>
+                        <div class="threat-bar">
+                            <span class="threat-fill" id="realtimeRecordsThreatFill"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 十六进制数据流 -->
+                <div class="realtime-records-hex-stream realtime-records-hex-left" id="realtimeRecordsHexLeft"></div>
+                <div class="realtime-records-hex-stream realtime-records-hex-right" id="realtimeRecordsHexRight"></div>
                 
                 <div class="realtime-records-container">
                     <!-- 工具栏 -->
@@ -676,11 +814,34 @@
             </section>
 
             <!-- 板块7：控制系统 -->
-            <section id="control-system" class="section">
+            <section id="control-system" class="section hud-theme">
                 <div class="section-header">
                     <h1><i class="fas fa-sliders-h"></i> 控制系统</h1>
                     <p class="section-description">设备远程控制面板</p>
                 </div>
+
+                <!-- HUD 叠加层（控制系统专用） -->
+                <div class="control-hud-overlay">
+                    <div class="hud-counters">
+                        <div class="hud-item">FRAME: <span id="controlHudFrame">00000</span></div>
+                        <div class="hud-item">BITRATE: <span id="controlHudBitrate">0.0 MB/s</span></div>
+                        <div class="hud-item">ENGINE: <span>VISION-AI v3.8.2</span></div>
+                    </div>
+                    <div class="hud-rec">
+                        <span class="rec-dot"></span>
+                        <span>REC</span>
+                    </div>
+                    <div class="hud-threat">
+                        <span>THREAT LEVEL</span>
+                        <div class="threat-bar">
+                            <span class="threat-fill" id="controlThreatFill"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 十六进制数据流 -->
+                <div class="control-hex-stream control-hex-left" id="controlHexLeft"></div>
+                <div class="control-hex-stream control-hex-right" id="controlHexRight"></div>
                 
                 <div class="control-system-container">
                     <!-- 检测系统视频流区域（新增） -->
@@ -1069,11 +1230,34 @@
             </section>
 
             <!-- 板块8：个人中心 -->
-            <section id="profile" class="section">
+            <section id="profile" class="section hud-theme">
                 <div class="section-header">
                     <h1><i class="fas fa-user"></i> 个人中心</h1>
                     <p class="section-description">用户信息和系统设置</p>
                 </div>
+
+                <!-- HUD 叠加层（个人中心专用） -->
+                <div class="profile-hud-overlay">
+                    <div class="hud-counters">
+                        <div class="hud-item">FRAME: <span id="profileHudFrame">00000</span></div>
+                        <div class="hud-item">BITRATE: <span id="profileHudBitrate">0.0 MB/s</span></div>
+                        <div class="hud-item">ENGINE: <span>VISION-AI v3.8.2</span></div>
+                    </div>
+                    <div class="hud-rec">
+                        <span class="rec-dot"></span>
+                        <span>REC</span>
+                    </div>
+                    <div class="hud-threat">
+                        <span>THREAT LEVEL</span>
+                        <div class="threat-bar">
+                            <span class="threat-fill" id="profileThreatFill"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 十六进制数据流 -->
+                <div class="profile-hex-stream profile-hex-left" id="profileHexLeft"></div>
+                <div class="profile-hex-stream profile-hex-right" id="profileHexRight"></div>
                 
                 <div class="profile-container">
                     <!-- 用户信息卡片 -->

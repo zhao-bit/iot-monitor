@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initControlModes();
     initStatusOverview();
     initOperationLogs();
+    initControlHudEffects();
     
     // 启动状态自动更新
     startStatusUpdate();
@@ -983,6 +984,103 @@ function initOperationLogs() {
     
     // 初始渲染
     renderLogs();
+}
+
+// ==================== HUD 视觉增强 ====================
+
+function initControlHudEffects() {
+    const section = document.getElementById('control-system');
+    if (!section) return;
+
+    const leftStream = document.getElementById('controlHexLeft');
+    const rightStream = document.getElementById('controlHexRight');
+    const frameEl = document.getElementById('controlHudFrame');
+    const bitrateEl = document.getElementById('controlHudBitrate');
+    const threatFillEl = document.getElementById('controlThreatFill');
+
+    const makeHexLine = () => {
+        const len = 8 + Math.floor(Math.random() * 8);
+        let out = '';
+        for (let i = 0; i < len; i += 1) {
+            out += Math.floor(Math.random() * 16).toString(16).toUpperCase();
+        }
+        return out;
+    };
+
+    const initStream = (count = 48) => {
+        const lines = [];
+        for (let i = 0; i < count; i += 1) {
+            lines.push(makeHexLine());
+        }
+        return lines;
+    };
+
+    if (leftStream && rightStream) {
+        let leftLines = initStream();
+        let rightLines = initStream();
+        leftStream.innerHTML = leftLines.join('<br>');
+        rightStream.innerHTML = rightLines.join('<br>');
+
+        setInterval(() => {
+            leftLines.shift();
+            rightLines.shift();
+            leftLines.push(makeHexLine());
+            rightLines.push(makeHexLine());
+            leftStream.innerHTML = leftLines.join('<br>');
+            rightStream.innerHTML = rightLines.join('<br>');
+        }, 700);
+    }
+
+    if (frameEl || bitrateEl || threatFillEl) {
+        let frame = 0;
+        setInterval(() => {
+            frame += Math.floor(8 + Math.random() * 6);
+            if (frameEl) {
+                frameEl.textContent = frame.toString().padStart(5, '0');
+            }
+        }, 120);
+
+        setInterval(() => {
+            if (bitrateEl) {
+                const bitrate = (2 + Math.random() * 8).toFixed(1);
+                bitrateEl.textContent = `${bitrate} MB/s`;
+            }
+            if (threatFillEl) {
+                const level = 20 + Math.random() * 60;
+                threatFillEl.style.width = `${level}%`;
+            }
+        }, 900);
+    }
+
+    let rafId = null;
+    let latestEvent = null;
+
+    const updateGlow = () => {
+        rafId = null;
+        if (!latestEvent) return;
+        const card = latestEvent.target.closest('.card');
+        if (!card || !section.contains(card)) return;
+        const rect = card.getBoundingClientRect();
+        const x = ((latestEvent.clientX - rect.left) / rect.width) * 100;
+        const y = ((latestEvent.clientY - rect.top) / rect.height) * 100;
+        card.style.setProperty('--glow-x', `${x}%`);
+        card.style.setProperty('--glow-y', `${y}%`);
+    };
+
+    section.addEventListener('mousemove', (event) => {
+        latestEvent = event;
+        if (rafId) return;
+        rafId = requestAnimationFrame(updateGlow);
+    });
+
+    section.addEventListener('mouseleave', () => {
+        latestEvent = null;
+        const cards = section.querySelectorAll('.card');
+        cards.forEach((card) => {
+            card.style.setProperty('--glow-x', '50%');
+            card.style.setProperty('--glow-y', '50%');
+        });
+    });
 }
 
 /**
