@@ -4687,6 +4687,22 @@ input:checked + .slider:before {
     margin-bottom: var(--spacing-lg);
 }
 
+.connection-controls,
+.detection-controls,
+.system-controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--spacing-md);
+    align-items: stretch;
+}
+
+.connection-controls .btn,
+.detection-controls .btn,
+.system-controls .btn {
+    width: 100%;
+    height: 48px;
+}
+
 .system-controls,
 .power-controls {
     display: flex;

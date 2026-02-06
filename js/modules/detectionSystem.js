@@ -5,7 +5,7 @@
  * ============================================
  */
 
-const DETECTION_API_BASE = "http://ynlu100202514.vicp.fun:26987"; // 检测系统API地址
+const DETECTION_API_BASE = "http://ynlu100202514.vicp.fun:12292"; // 检测系统API地址
 
 // 全局变量
 let videoStreamUrl = null;
