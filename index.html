@@ -388,60 +388,6 @@
                     <p class="section-description">实时监控画面和检测结果</p>
                 </div>
                 
-                <!-- 检测系统视频流区域（新增） -->
-                <div id="detection-system-section" class="detection-system-container">
-                    <div class="detection-video-panel card">
-                        <h3><i class="fas fa-video"></i> 摄像头视频流</h3>
-                        <div class="video-stream-wrapper">
-                            <img id="detectionVideo" src="" alt="视频流" style="width: 100%; max-width: 1280px; height: auto; border: 2px solid var(--border-color); border-radius: 8px;">
-                            <div class="video-controls-bar">
-                                <button class="btn btn-success" id="startDetectionBtn">
-                                    <i class="fas fa-play"></i> 启动摄像头
-                                </button>
-                                <button class="btn btn-danger" id="stopDetectionBtn" disabled>
-                                    <i class="fas fa-stop"></i> 停止摄像头
-                                </button>
-                                <button class="btn btn-info" id="connectControlSystemBtn">
-                                    <i class="fas fa-link"></i> 连接控制系统
-                                </button>
-                                <button class="btn btn-secondary" id="refreshVideoStreamBtn">
-                                    <i class="fas fa-sync-alt"></i> 刷新视频流
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="detection-info-panel card">
-                        <h3><i class="fas fa-info-circle"></i> 检测信息</h3>
-                        <div class="detection-info-grid">
-                            <div class="info-item">
-                                <label>检测模式:</label>
-                                <span id="detectedMode">--</span>
-                            </div>
-                            <div class="info-item">
-                                <label>置信度:</label>
-                                <span id="detectionConfidence">--</span>
-                            </div>
-                            <div class="info-item">
-                                <label>检测时间:</label>
-                                <span id="detectionTimestamp">--</span>
-                            </div>
-                            <div class="info-item">
-                                <label>运行状态:</label>
-                                <span id="detectionRunningStatus">检查中...</span>
-                            </div>
-                            <div class="info-item">
-                                <label>当前FPS:</label>
-                                <span id="detectionFps">--</span>
-                            </div>
-                            <div class="info-item">
-                                <label>已接收帧数:</label>
-                                <span id="detectionFramesReceived">0</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
                 <div class="realtime-detection-container">
                     <!-- 主要内容区域 -->
                     <div class="detection-main">
@@ -737,6 +683,60 @@
                 </div>
                 
                 <div class="control-system-container">
+                    <!-- 检测系统视频流区域（新增） -->
+                    <div id="detection-system-section" class="detection-system-container">
+                        <div class="detection-video-panel card">
+                            <h3><i class="fas fa-video"></i> 摄像头视频流</h3>
+                            <div class="video-stream-wrapper">
+                                <img id="detectionVideo" src="" alt="视频流" style="width: 100%; max-width: 1280px; height: auto; border: 2px solid var(--border-color); border-radius: 8px;">
+                                <div class="video-controls-bar">
+                                    <button class="btn btn-success" id="startDetectionBtn">
+                                        <i class="fas fa-play"></i> 启动摄像头
+                                    </button>
+                                    <button class="btn btn-danger" id="stopDetectionBtn" disabled>
+                                        <i class="fas fa-stop"></i> 停止摄像头
+                                    </button>
+                                    <button class="btn btn-info" id="connectControlSystemBtn">
+                                        <i class="fas fa-link"></i> 连接控制系统
+                                    </button>
+                                    <button class="btn btn-secondary" id="refreshVideoStreamBtn">
+                                        <i class="fas fa-sync-alt"></i> 刷新视频流
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="detection-info-panel card">
+                            <h3><i class="fas fa-info-circle"></i> 检测信息</h3>
+                            <div class="detection-info-grid">
+                                <div class="info-item">
+                                    <label>检测模式:</label>
+                                    <span id="detectedMode">--</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>置信度:</label>
+                                    <span id="detectionConfidence">--</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>检测时间:</label>
+                                    <span id="detectionTimestamp">--</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>运行状态:</label>
+                                    <span id="detectionRunningStatus">检查中...</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>当前FPS:</label>
+                                    <span id="detectionFps">--</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>已接收帧数:</label>
+                                    <span id="detectionFramesReceived">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 高压电源连接面板 -->
                     <div class="hv-power-connection-panel card">
                         <h3><i class="fas fa-plug"></i> 高压电源连接</h3>

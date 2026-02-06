@@ -9,19 +9,57 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <!-- 粒子背景画布 -->
-    <canvas id="particleCanvas"></canvas>
+    <!-- HUD背景画布 -->
+    <canvas id="hudCanvas"></canvas>
+    
+    <!-- HUD叠加层 -->
+    <div class="hud-overlay">
+        <div class="hud-counters">
+            <div class="hud-item">FRAME: <span id="hudFrame">00000</span></div>
+            <div class="hud-item">BITRATE: <span id="hudBitrate">0.0 MB/s</span></div>
+            <div class="hud-item">ENGINE: <span id="hudEngine">VISION-AI v3.8.2</span></div>
+        </div>
+        <div class="hud-rec">
+            <span class="rec-dot"></span>
+            <span>REC</span>
+        </div>
+        <div class="hud-threat">
+            <span>THREAT LEVEL</span>
+            <div class="threat-bar">
+                <span class="threat-fill" id="threatFill"></span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 左右十六进制数据流 -->
+    <div class="hex-stream hex-stream-left" id="hexStreamLeft"></div>
+    <div class="hex-stream hex-stream-right" id="hexStreamRight"></div>
+    
+    <!-- 底部右侧波形分析仪 -->
+    <div class="waveform-panel">
+        <div class="panel-title">SIGNAL ANALYZER</div>
+        <canvas id="waveformCanvas"></canvas>
+        <div class="panel-meta">
+            <span>System Online</span>
+            <span>Encrypted Connection</span>
+        </div>
+    </div>
+    
+    <!-- 聚焦遮罩 -->
+    <div class="login-focus-backdrop"></div>
     
     <!-- 登录容器 -->
     <div class="login-container">
-        <div class="login-box">
+        <div class="login-box" id="loginBox">
+            <div class="orbit-ring ring-outer"></div>
+            <div class="orbit-ring ring-inner"></div>
             <!-- Logo和标题 -->
             <div class="login-header">
                 <div class="logo-icon">
                     <i class="fas fa-brain"></i>
                 </div>
                 <h1>智能监控系统</h1>
-                <p>Intelligent Monitoring System</p>
+                <p>INTELLIGENT MONITORING SYSTEM</p>
             </div>
             
             <!-- 登录表单 -->
@@ -67,8 +105,13 @@
                     <a href="#" class="forgot-password">忘记密码？</a>
                 </div>
                 
+                <div class="login-status">
+                    <span class="status-label">STATUS</span>
+                    <span class="status-text" id="loginStatusText">STANDBY</span>
+                </div>
+
                 <button type="submit" class="login-btn" id="loginBtn">
-                    <span class="btn-text">登录</span>
+                    <span class="btn-text">ACCESS</span>
                     <span class="btn-loader" style="display: none;">
                         <i class="fas fa-spinner fa-spin"></i>
                     </span>
