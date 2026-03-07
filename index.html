@@ -850,20 +850,6 @@
                             <h3><i class="fas fa-video"></i> 摄像头视频流</h3>
                             <div class="video-stream-wrapper">
                                 <img id="detectionVideo" src="" alt="视频流" style="width: 100%; max-width: 1280px; height: auto; border: 2px solid var(--border-color); border-radius: 8px;">
-                                <div class="video-controls-bar">
-                                    <button class="btn btn-success" id="startDetectionBtn">
-                                        <i class="fas fa-play"></i> 启动摄像头
-                                    </button>
-                                    <button class="btn btn-danger" id="stopDetectionBtn" disabled>
-                                        <i class="fas fa-stop"></i> 停止摄像头
-                                    </button>
-                                    <button class="btn btn-info" id="connectControlSystemBtn">
-                                        <i class="fas fa-link"></i> 连接控制系统
-                                    </button>
-                                    <button class="btn btn-secondary" id="refreshVideoStreamBtn">
-                                        <i class="fas fa-sync-alt"></i> 刷新视频流
-                                    </button>
-                                </div>
                             </div>
                         </div>
                         
@@ -877,10 +863,6 @@
                                 <div class="info-item">
                                     <label>置信度:</label>
                                     <span id="detectionConfidence">--</span>
-                                </div>
-                                <div class="info-item">
-                                    <label>检测时间:</label>
-                                    <span id="detectionTimestamp">--</span>
                                 </div>
                                 <div class="info-item">
                                     <label>运行状态:</label>
@@ -914,26 +896,15 @@
                         </div>
                     </div>
 
-                    <!-- 检测连接测试面板 -->
-                    <div class="detection-connection-panel card">
-                        <h3><i class="fas fa-network-wired"></i> 检测连接测试</h3>
-                        <div class="detection-controls">
-                            <button class="btn btn-primary" id="testDetectionConnectionBtn">
-                                <i class="fas fa-vial"></i> 测试检测连接
-                            </button>
-                            <button class="btn btn-info" id="showConnectionStatusBtn">
-                                <i class="fas fa-info-circle"></i> 显示连接状态
-                            </button>
-                            <button class="btn btn-warning" id="diagnoseConnectionBtn">
-                                <i class="fas fa-stethoscope"></i> 诊断连接问题
-                            </button>
-                        </div>
-                    </div>
+                    
 
                     <!-- 系统控制面板 -->
                     <div class="system-control-panel card">
                         <h3><i class="fas fa-cog"></i> 系统控制</h3>
                         <div class="system-controls">
+                            <button class="btn btn-info" id="selfCheckInitBtn">
+                                <i class="fas fa-stethoscope"></i> 自检并初始化
+                            </button>
                             <button class="btn btn-primary" id="initSystemBtn">
                                 <i class="fas fa-power-off"></i> 初始化系统
                             </button>
@@ -992,6 +963,11 @@
                                 <i class="fas fa-sync-alt"></i> 刷新状态
                             </button>
                             <span class="last-update" id="lastUpdateTime">最后更新：--</span>
+                            <div class="connectivity-status" style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;">
+                                <span>控制HTTP：<b id="controlHttpStatus">未知</b></span>
+                                <span>检测HTTP：<b id="detectionHttpStatus">未知</b></span>
+                                <span>控制TCP：<b id="controlTcpStatus">未知</b></span>
+                            </div>
                         </div>
                     </div>
 
@@ -1024,44 +1000,23 @@
                         <h3><i class="fas fa-sliders-h"></i> 控制模式</h3>
                         <div class="mode-controls">
                             <div class="mode-section">
-                                <h4>电压探索</h4>
-                                <div class="exploration-controls">
-                                    <div class="form-row">
-                                        <label>最小电压:</label>
-                                        <input type="number" id="minVoltage" min="0" max="30" step="0.1" value="0" class="form-input-small">
-                                    </div>
-                                    <div class="form-row">
-                                        <label>最大电压:</label>
-                                        <input type="number" id="maxVoltage" min="0" max="30" step="0.1" value="20" class="form-input-small">
-                                    </div>
-                                    <div class="form-row">
-                                        <label>步进:</label>
-                                        <input type="number" id="voltageStep" min="0.1" max="5" step="0.1" value="0.5" class="form-input-small">
-                                    </div>
-                                    <div class="form-row">
-                                        <label>等待时间:</label>
-                                        <input type="number" id="waitTime" min="0.1" max="10" step="0.1" value="1.0" class="form-input-small">
-                                    </div>
-                                    <div class="mode-buttons">
-                                        <button class="btn btn-primary" id="startExplorationBtn">
-                                            <i class="fas fa-play"></i> 开始探索
-                                        </button>
-                                        <button class="btn btn-danger" id="stopExplorationBtn">
-                                            <i class="fas fa-stop"></i> 停止探索
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mode-section">
                                 <h4>目标控制</h4>
                                 <div class="target-controls">
-                                    <label for="targetModeSelect">目标模式:</label>
-                                    <select id="targetModeSelect" class="form-select">
-                                        <option value="">请先完成电压探索</option>
-                                    </select>
-                                    <button class="btn btn-sm btn-secondary" id="refreshModesBtn" style="margin-top: 8px;">
-                                        <i class="fas fa-sync-alt"></i> 刷新模式列表
-                                    </button>
+                                    <div class="voltage-range" style="display:flex;gap:12px;align-items:center;margin-bottom:8px;">
+                                        <div>
+                                            <label for="minVoltageInput">最低电压 (kV)：</label>
+                                            <input type="number" id="minVoltageInput" min="0" max="30" step="0.1" value="0" class="voltage-input" style="width:120px;">
+                                        </div>
+                                        <div>
+                                            <label for="maxVoltageInput">最高电压 (kV)：</label>
+                                            <input type="number" id="maxVoltageInput" min="0" max="30" step="0.1" value="20" class="voltage-input" style="width:120px;">
+                                        </div>
+                                        <small style="color:var(--text-secondary)">范围用于目标控制，需保证最低 < 最高</small>
+                                    </div>
+                                    <div class="mode-classes-panel" style="margin-top:12px;">
+                                        <label>已识别模式:</label>
+                                        <div id="modeClassesContainer" class="mode-classes-container" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+                                    </div>
                                     <div class="mode-buttons">
                                         <button class="btn btn-primary" id="startTargetControlBtn">
                                             <i class="fas fa-play"></i> 开始控制
@@ -1075,127 +1030,33 @@
                         </div>
                     </div>
 
-                    <!-- 主要内容区域 -->
-                    <div class="control-main-content">
-                        <!-- 左侧：设备分组树 -->
-                        <div class="device-tree-panel card">
-                            <div class="panel-header">
-                                <h3><i class="fas fa-sitemap"></i> 设备分组</h3>
-                                <button class="btn btn-sm btn-primary" id="addGroupBtn">
-                                    <i class="fas fa-plus"></i> 添加分组
-                                </button>
+                    <div class="pid-params-panel card">
+                        <h3><i class="fas fa-tachometer-alt"></i> PID参数</h3>
+                        <div class="pid-grid">
+                            <div class="pid-item">
+                                <label>KP：</label>
+                                <span id="pidKp">--</span>
                             </div>
-                            <div class="device-tree" id="deviceTree">
-                                <!-- 树形结构将通过JavaScript动态生成 -->
+                            <div class="pid-item">
+                                <label>KI：</label>
+                                <span id="pidKi">--</span>
                             </div>
-                        </div>
-
-                        <!-- 右侧：设备详情和控制面板 -->
-                        <div class="device-detail-panel card">
-                            <div id="noDeviceSelected" class="no-selection">
-                                <i class="fas fa-mouse-pointer"></i>
-                                <p>请从左侧选择一个设备</p>
+                            <div class="pid-item">
+                                <label>KD：</label>
+                                <span id="pidKd">--</span>
                             </div>
-
-                            <!-- 设备详情（选中设备后显示） -->
-                            <div id="deviceDetail" style="display: none;">
-                                <!-- 设备基本信息 -->
-                                <div class="device-info">
-                                    <div class="device-header">
-                                        <div class="device-title">
-                                            <h3 id="deviceName">设备名称</h3>
-                                            <span class="device-status-badge" id="deviceStatusBadge">
-                                                <i class="fas fa-circle"></i> 离线
-                                            </span>
-                                        </div>
-                                        <div class="device-id">
-                                            <span>设备ID：</span>
-                                            <span id="deviceId">--</span>
-                                        </div>
-                                    </div>
-                                    <div class="device-meta">
-                                        <div class="meta-item">
-                                            <i class="fas fa-tag"></i>
-                                            <span>分组：</span>
-                                            <span id="deviceGroup">--</span>
-                                        </div>
-                                        <div class="meta-item">
-                                            <i class="fas fa-clock"></i>
-                                            <span>最后在线：</span>
-                                            <span id="deviceLastOnline">--</span>
-                                        </div>
-                                        <div class="meta-item">
-                                            <i class="fas fa-info-circle"></i>
-                                            <span>运行状态：</span>
-                                            <span id="deviceRunStatus">--</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- 控制面板 -->
-                                <div class="control-panel">
-                                    <h4><i class="fas fa-sliders-h"></i> 设备控制</h4>
-                                    <div class="control-buttons">
-                                        <button class="btn btn-success" id="startDeviceBtn" data-action="start">
-                                            <i class="fas fa-play"></i> 启动
-                                        </button>
-                                        <button class="btn btn-danger" id="stopDeviceBtn" data-action="stop">
-                                            <i class="fas fa-stop"></i> 停止
-                                        </button>
-                                        <button class="btn btn-warning" id="restartDeviceBtn" data-action="restart">
-                                            <i class="fas fa-redo"></i> 重启
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- 设备参数设置 -->
-                                <div class="device-settings">
-                                    <h4><i class="fas fa-cog"></i> 参数设置</h4>
-                                    <form id="deviceSettingsForm" class="settings-form">
-                                        <div class="form-group">
-                                            <label for="devicePower">功率设置 (%)</label>
-                                            <input type="range" id="devicePower" name="power" min="0" max="100" value="50" step="1">
-                                            <span class="range-value" id="powerValue">50%</span>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="deviceSpeed">运行速度</label>
-                                            <select id="deviceSpeed" name="speed">
-                                                <option value="low">低速</option>
-                                                <option value="medium" selected>中速</option>
-                                                <option value="high">高速</option>
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="deviceMode">运行模式</label>
-                                            <select id="deviceMode" name="mode">
-                                                <option value="auto" selected>自动</option>
-                                                <option value="manual">手动</option>
-                                                <option value="scheduled">定时</option>
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="deviceInterval">检测间隔 (秒)</label>
-                                            <input type="number" id="deviceInterval" name="interval" min="1" max="3600" value="10">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>
-                                                <input type="checkbox" id="deviceAutoRestart" name="autoRestart">
-                                                异常自动重启
-                                            </label>
-                                        </div>
-                                        <div class="form-actions">
-                                            <button type="submit" class="btn btn-primary">
-                                                <i class="fas fa-save"></i> 保存设置
-                                            </button>
-                                            <button type="button" class="btn btn-secondary" id="resetSettingsBtn">
-                                                <i class="fas fa-undo"></i> 重置
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
+                            <div class="pid-item">
+                                <label>步长：</label>
+                                <span id="pidStepSize">--</span>
+                            </div>
+                            <div class="pid-item">
+                                <label>步时：</label>
+                                <span id="pidStepTime">--</span>
                             </div>
                         </div>
                     </div>
+
+                    
 
                     <!-- 操作日志 -->
                     <div class="operation-logs card">

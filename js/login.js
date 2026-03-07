@@ -483,7 +483,7 @@ function initLogin() {
             await runStatusSequence(statusText, stages, 650);
 
             setTimeout(() => {
-                if (formData.username && formData.password) {
+                if (formData.username === 'user' && formData.password === '123456') {
                     localStorage.setItem('isLoggedIn', 'true');
                     localStorage.setItem('username', formData.username);
                     if (formData.rememberMe) {

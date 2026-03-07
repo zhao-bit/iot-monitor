@@ -5,7 +5,7 @@
  * ============================================
  */
 
-const API_BASE = "http://ynlu100202514.vicp.fun"; // FastAPI 后端地址
+let API_BASE = "http://ynlu100202514.vicp.fun";
 
 // ========== 全局变量 ==========
 let systemStatus = null;
@@ -14,8 +14,9 @@ let operationLogs = [];
 let lastExplorationActive = false; // 用于检测探索结束并自动刷新模式列表
 let prevModeCount = 0;
 // 等待DOM加载完成
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('控制系统模块初始化...');
+    await initApiBase();
     
     // 初始化所有功能
     initHvPowerConnection();
@@ -26,6 +27,9 @@ document.addEventListener('DOMContentLoaded', function() {
     initStatusOverview();
     initOperationLogs();
     initControlHudEffects();
+    initPidPanel();
+    initConnectivityControls();
+    runSelfCheckInit();
     
     // 启动状态自动更新
     startStatusUpdate();
@@ -33,6 +37,22 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('控制系统模块初始化完成！');
 });
 
+async function initApiBase() {
+    const candidates = [
+        API_BASE,
+        "http://127.0.0.1:8000",
+        (typeof window !== "undefined" ? `${window.location.origin}` : "")
+    ].filter(Boolean);
+    for (let i = 0; i < candidates.length; i += 1) {
+        try {
+            const res = await fetch(`${candidates[i]}/api/health`, { method: "GET" });
+            if (res.ok) {
+                API_BASE = candidates[i];
+                return;
+            }
+        } catch (e) {}
+    }
+}
 // ==================== 后端通信 ====================
 
 /**
@@ -51,22 +71,7 @@ async function fetchSystemStatus() {
         const data = await res.json();
         systemStatus = data;
 
-        // --- 核心同步逻辑开始 ---
-        const exploring = data.system?.exploration_active || false;
-        const currentModeCount = data.control?.mode_count || 0;
-
-        // 判定条件：
-        // 1. 探索状态从“运行中”变成了“已停止”（lastExplorationActive 为 true，exploring 为 false）
-        // 2. 或者在探索过程中，后端发现新模式了（currentModeCount 大于 prevModeCount）
-        if ((lastExplorationActive && !exploring) || (currentModeCount > prevModeCount)) {
-            console.log(`[同步] 检测到模式更新 (数量: ${currentModeCount})，正在刷新下拉框...`);
-            loadModesList(); // 触发你刚才修改好的 loadModesList 刷新 UI
-        }
-
-        // 更新持久化状态供下次对比
-        lastExplorationActive = exploring;
-        prevModeCount = currentModeCount;
-        // --- 核心同步逻辑结束 ---
+        // 状态变更时只更新UI，不再刷新探索模式下拉框
 
         updateStatusUI(data);
         
@@ -118,6 +123,47 @@ async function initSystem() {
     }
 }
 
+function setConnStatus(id, ok) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = ok ? '已连接' : '未连接';
+    el.style.color = ok ? '#16a34a' : '#ef4444';
+}
+
+function initConnectivityControls() {
+    const btn = document.getElementById('selfCheckInitBtn');
+    if (btn) btn.addEventListener('click', runSelfCheckInit);
+}
+
+async function runSelfCheckInit() {
+    try {
+        let ok = false;
+        try {
+            const r = await fetch(`${API_BASE}/api/health`);
+            ok = r.ok;
+        } catch (e) { ok = false; }
+        setConnStatus('controlHttpStatus', ok);
+        if (!ok) return;
+        const statusRes = await fetch(`${API_BASE}/api/system/status`);
+        const status = statusRes.ok ? await statusRes.json() : {};
+        if (!status.system?.running) {
+            await initSystem();
+        }
+        let detOk = false;
+        try {
+            const r2 = await fetch(`${DETECTION_API_BASE}/api/detection/status`);
+            detOk = r2.ok;
+        } catch (e) { detOk = false; }
+        setConnStatus('detectionHttpStatus', detOk);
+        if (detOk) {
+            await fetch(`${DETECTION_API_BASE}/api/control/connect`, { method: 'POST' }).catch(() => {});
+        }
+        const st2 = await fetch(`${API_BASE}/api/system/status`).then(r => r.ok ? r.json() : {});
+        const tcp = (st2?.detection?.clients || 0) > 0;
+        setConnStatus('controlTcpStatus', tcp);
+        await loadModeClasses();
+    } catch (e) {}
+}
 /**
  * 关闭系统
  */
@@ -268,59 +314,33 @@ async function disablePower() {
 async function startExploration() {
     const minVoltage = parseFloat(document.getElementById('minVoltage').value);
     const maxVoltage = parseFloat(document.getElementById('maxVoltage').value);
-    const voltageStep = parseFloat(document.getElementById('voltageStep').value);
-    const waitTime = parseFloat(document.getElementById('waitTime').value);
-
-    if (isNaN(minVoltage) || isNaN(maxVoltage) || isNaN(voltageStep) || isNaN(waitTime)) {
-        showMessage('请填写有效的电压与时间参数', 'error');
+    if (isNaN(minVoltage) || isNaN(maxVoltage)) {
+        showMessage('请填写有效的电压范围', 'error');
         return;
     }
     if (minVoltage >= maxVoltage) {
         showMessage('最小电压必须小于最大电压', 'error');
         return;
     }
-    if (voltageStep <= 0) {
-        showMessage('电压步长必须大于 0', 'error');
-        return;
-    }
-    if (waitTime < 0.15 || waitTime > 10) {
-        showMessage('等待时间建议在 0.15～10 秒之间', 'error');
-        return;
-    }
-    
     const url = `${API_BASE}/api/control/exploration/start`;
     showRequestStatus(`请求: ${url} ...`, 'info');
-
     try {
         const res = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 min_voltage: minVoltage,
-                max_voltage: maxVoltage,
-                voltage_step: voltageStep,
-                wait_time: waitTime,
-                confidence_threshold: 0.1
+                max_voltage: maxVoltage
             })
         });
-
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        
         const data = await res.json();
         showRequestStatus(`探索启动成功: ${url}`, 'success');
         showMessage(data.message || "电压探索已启动", "success");
-        
         addOperationLog('control', 'exploration_start', `开始电压探索: ${minVoltage}-${maxVoltage}kV`, 'success');
-        
-        // 更新按钮状态
         document.getElementById('startExplorationBtn').disabled = true;
         document.getElementById('stopExplorationBtn').disabled = false;
-        
-        // 刷新状态和模式列表
-        setTimeout(() => {
-            fetchSystemStatus();
-            loadModesList();
-        }, 500);
+        setTimeout(fetchSystemStatus, 500);
     } catch (e) {
         console.error("启动探索失败", e);
         showRequestStatus(`探索启动失败: ${url}`, 'error');
@@ -351,10 +371,7 @@ async function stopExploration() {
         document.getElementById('stopExplorationBtn').disabled = true;
         
         // 刷新状态和模式列表
-        setTimeout(() => {
-            fetchSystemStatus();
-            loadModesList();
-        }, 500);
+        setTimeout(fetchSystemStatus, 500);
     } catch (e) {
         console.error("停止探索失败", e);
         showRequestStatus(`探索停止失败: ${url}`, 'error');
@@ -371,11 +388,30 @@ async function stopExploration() {
 /**
  * 开始目标控制
  */
-async function startTargetControl() {
-    const targetMode = (document.getElementById('targetModeSelect').value || '').trim();
+async function startTargetControl(modeName) {
+    const targetMode = (modeName || '').trim();
     if (!targetMode) {
-        showMessage('请先选择目标模式（完成电压探索后刷新模式列表）', 'error');
+        showMessage('请从已识别模式中选择目标模式', 'error');
         return;
+    }
+
+    const minEl = document.getElementById('minVoltageInput');
+    const maxEl = document.getElementById('maxVoltageInput');
+    const minV = minEl ? parseFloat(minEl.value) : undefined;
+    const maxV = maxEl ? parseFloat(maxEl.value) : undefined;
+    if (minV != null && maxV != null) {
+        if (isNaN(minV) || isNaN(maxV)) {
+            showMessage('请输入有效的电压范围数值', 'error');
+            return;
+        }
+        if (minV < 0 || maxV > 20) {
+            showMessage('电压范围需在 0–20kV 之间', 'error');
+            return;
+        }
+        if (minV >= maxV) {
+            showMessage('最低电压必须小于最高电压', 'error');
+            return;
+        }
     }
 
     const url = `${API_BASE}/api/control/target/start`;
@@ -386,7 +422,9 @@ async function startTargetControl() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                target_mode: targetMode
+                target_mode: targetMode,
+                min_voltage: (minV != null && !isNaN(minV)) ? Number(minV) : undefined,
+                max_voltage: (maxV != null && !isNaN(maxV)) ? Number(maxV) : undefined
             })
         });
 
@@ -634,6 +672,32 @@ function updateControlButtons(data) {
     }
 }
 
+let pidUpdateInterval = null;
+async function fetchPidParams() {
+    const url = `${API_BASE}/api/control/pid`;
+    try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const pid = data.pid || {};
+        const kpEl = document.getElementById('pidKp');
+        const kiEl = document.getElementById('pidKi');
+        const kdEl = document.getElementById('pidKd');
+        const stepSizeEl = document.getElementById('pidStepSize');
+        const stepTimeEl = document.getElementById('pidStepTime');
+        if (kpEl) kpEl.textContent = (pid.kp != null ? Number(pid.kp).toFixed(3) : '--');
+        if (kiEl) kiEl.textContent = (pid.ki != null ? Number(pid.ki).toFixed(3) : '--');
+        if (kdEl) kdEl.textContent = (pid.kd != null ? Number(pid.kd).toFixed(3) : '--');
+        if (stepSizeEl) stepSizeEl.textContent = (pid.step_size != null ? Number(pid.step_size).toFixed(2) + ' kV' : '--');
+        if (stepTimeEl) stepTimeEl.textContent = (pid.step_time != null ? Number(pid.step_time).toFixed(2) + ' s' : '--');
+    } catch (e) {
+    }
+}
+function initPidPanel() {
+    fetchPidParams();
+    if (pidUpdateInterval) return;
+    pidUpdateInterval = setInterval(fetchPidParams, 5000);
+}
 // ==================== 高压电源连接 ====================
 
 /**
@@ -772,20 +836,9 @@ async function diagnoseConnection() {
  * 初始化检测连接
  */
 function initDetectionConnection() {
-    const testBtn = document.getElementById('testDetectionConnectionBtn');
     const showStatusBtn = document.getElementById('showConnectionStatusBtn');
-    const diagnoseBtn = document.getElementById('diagnoseConnectionBtn');
-    
-    if (testBtn) {
-        testBtn.addEventListener('click', testDetectionConnection);
-    }
-    
     if (showStatusBtn) {
         showStatusBtn.addEventListener('click', showConnectionStatus);
-    }
-    
-    if (diagnoseBtn) {
-        diagnoseBtn.addEventListener('click', diagnoseConnection);
     }
 }
 
@@ -850,7 +903,6 @@ function initControlModes() {
     const stopExplorationBtn = document.getElementById('stopExplorationBtn');
     const startTargetControlBtn = document.getElementById('startTargetControlBtn');
     const stopTargetControlBtn = document.getElementById('stopTargetControlBtn');
-    const refreshModesBtn = document.getElementById('refreshModesBtn');
     
     if (startExplorationBtn) {
         startExplorationBtn.addEventListener('click', startExploration);
@@ -870,66 +922,66 @@ function initControlModes() {
         stopTargetControlBtn.addEventListener('click', stopTargetControl);
     }
     
-    if (refreshModesBtn) {
-        refreshModesBtn.addEventListener('click', loadModesList);
-    }
+    loadModeClasses();
     
-    // 初始加载模式列表
-    loadModesList();
-    
-    // 定期刷新模式列表（每10秒）
-    setInterval(loadModesList, 10000);
+    setInterval(loadModeClasses, 10000);
 }
 
-/**
- * 加载模式列表
- */
-async function loadModesList() {
-    const url = `${API_BASE}/api/control/modes`;
-    
-    try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        
-        const data = await res.json();
-        const targetModeSelect = document.getElementById('targetModeSelect');
-        if (!targetModeSelect) return;
 
-        // 无论 success 与否都更新下拉框，避免接口失败时残留旧数据
-        const currentValue = targetModeSelect.value;
-        targetModeSelect.innerHTML = '';
-
-        if (data.success && data.modes && data.modes.length > 0) {
-            // 与后端“已识别模式”一致：模式X: 名称, 电压:X.XkV (N次)
-            data.modes.forEach((mode) => {
-                const option = document.createElement('option');
-                option.value = mode.id;
-                const vol = (typeof mode.voltage === 'number' ? mode.voltage : Number(mode.voltage) || 0).toFixed(1);
-                const count = mode.count != null ? mode.count : 0;
-                const name = mode.name || '';
-                option.textContent = `模式${mode.id}: ${name}, 电压:${vol}kV (${count}次)`;
-                targetModeSelect.appendChild(option);
-            });
-            if (currentValue && Array.from(targetModeSelect.options).some(opt => opt.value === currentValue)) {
-                targetModeSelect.value = currentValue;
-            }
-        } else {
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = '请先完成电压探索';
-            targetModeSelect.appendChild(option);
-        }
-    } catch (e) {
-        console.error('加载模式列表失败:', e);
-        const targetModeSelect = document.getElementById('targetModeSelect');
-        if (targetModeSelect) {
-            targetModeSelect.innerHTML = '';
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = '请先完成电压探索';
-            targetModeSelect.appendChild(option);
-        }
+async function loadModeClasses() {
+    let data = null;
+    const bases = [API_BASE, "http://127.0.0.1:8000"];
+    for (let i = 0; i < bases.length; i += 1) {
+        try {
+            const res = await fetch(`${bases[i]}/api/control/classes`);
+            if (!res.ok) continue;
+            data = await res.json();
+            break;
+        } catch (e) {}
     }
+    const container = document.getElementById('modeClassesContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!data) {
+        const tip = document.createElement('span');
+        tip.textContent = '模式读取失败';
+        tip.style.color = 'var(--danger-color, #ef4444)';
+        container.appendChild(tip);
+        const select = document.getElementById('targetModeSelect');
+        const label = document.querySelector('label[for="targetModeSelect"]');
+        const refreshBtn = document.getElementById('refreshModesBtn');
+        if (select) select.style.display = '';
+        if (label) label.style.display = '';
+        if (refreshBtn) refreshBtn.style.display = '';
+        return;
+    }
+    const classes = Array.isArray(data.classes) ? data.classes : [];
+    const select = document.getElementById('targetModeSelect');
+    const label = document.querySelector('label[for="targetModeSelect"]');
+    const refreshBtn = document.getElementById('refreshModesBtn');
+    if (classes.length === 0) {
+        const tip = document.createElement('span');
+        tip.textContent = data.received ? '无可用模式' : '等待检测系统发送模式';
+        tip.style.color = 'var(--text-secondary)';
+        container.appendChild(tip);
+        if (select) select.style.display = '';
+        if (label) label.style.display = '';
+        if (refreshBtn) refreshBtn.style.display = '';
+        return;
+    }
+    if (select) select.style.display = 'none';
+    if (label) label.style.display = 'none';
+    if (refreshBtn) refreshBtn.style.display = 'none';
+    classes.forEach((name) => {
+        if (!name) return;
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-sm btn-outline-primary';
+        btn.textContent = name;
+        btn.addEventListener('click', () => {
+            startTargetControl(name);
+        });
+        container.appendChild(btn);
+    });
 }
 
 /**

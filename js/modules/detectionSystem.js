@@ -5,7 +5,7 @@
  * ============================================
  */
 
-const DETECTION_API_BASE = "http://ynlu100202514.vicp.fun:12292"; // 检测系统API地址
+let DETECTION_API_BASE = "http://ynlu100202514.vicp.fun:52232";
 
 // 全局变量
 let videoStreamUrl = null;
@@ -15,8 +15,9 @@ let detectionParams = {};
 let detectionAutoPolling = true;
 
 // 等待DOM加载完成
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('检测系统模块初始化...');
+    await initDetectionApiBase();
     
     // 检查是否在检测系统页面
     const detectionSection = document.getElementById('detection-system-section');
@@ -47,6 +48,21 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('检测系统模块初始化完成（摄像头画面 + 检测信息）！');
 });
 
+async function initDetectionApiBase() {
+    const candidates = [
+        DETECTION_API_BASE,
+        "http://127.0.0.1:8001"
+    ].filter(Boolean);
+    for (let i = 0; i < candidates.length; i += 1) {
+        try {
+            const res = await fetch(`${candidates[i]}/api/detection/status`, { method: "GET" });
+            if (res.ok) {
+                DETECTION_API_BASE = candidates[i];
+                return;
+            }
+        } catch (e) {}
+    }
+}
 // ==================== 视频流（显示 simplified version.py 的画面） ====================
 
 /**
@@ -63,37 +79,6 @@ function initVideoStream() {
         console.warn('视频流加载失败，请确保 detection_api_server.py 正在运行');
         videoImg.alt = '视频流加载失败';
     };
-    
-    // 刷新按钮
-    const refreshBtn = document.getElementById('refreshVideoStreamBtn');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', function() {
-            videoImg.src = '';
-            setTimeout(() => {
-                videoImg.src = streamUrl;
-            }, 100);
-        });
-    }
-    
-    // 连接控制系统按钮
-    const connectBtn = document.getElementById('connectControlSystemBtn');
-    if (connectBtn) {
-        connectBtn.addEventListener('click', async function() {
-            try {
-                const res = await fetch(`${DETECTION_API_BASE}/api/control/connect`, {
-                    method: 'POST'
-                });
-                const data = await res.json();
-                if (data.success) {
-                    alert('✅ 已连接到控制系统');
-                } else {
-                    alert('⚠️ ' + data.message);
-                }
-            } catch (e) {
-                alert('❌ 连接失败: ' + e.message);
-            }
-        });
-    }
     
     console.log('视频流已初始化:', streamUrl);
 }
@@ -350,7 +335,6 @@ async function fetchLatestDetection() {
 function updateDetectionDisplay(detection) {
     const modeEl = document.getElementById('detectedMode');
     const confidenceEl = document.getElementById('detectionConfidence');
-    const timestampEl = document.getElementById('detectionTimestamp');
     
     if (modeEl) {
         modeEl.textContent = detection.detected_mode || "none";
@@ -360,11 +344,6 @@ function updateDetectionDisplay(detection) {
         confidenceEl.textContent = detection.confidence 
             ? (detection.confidence * 100).toFixed(1) + '%'
             : '0%';
-    }
-    
-    if (timestampEl && detection.timestamp) {
-        const date = new Date(detection.timestamp * 1000);
-        timestampEl.textContent = date.toLocaleTimeString("zh-CN");
     }
 }
 

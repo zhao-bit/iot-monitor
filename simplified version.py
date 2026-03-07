@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 import socket
 import json
+import select
 
 # 摄像头编号
 camera_no = 1
@@ -16,7 +17,7 @@ camera_no = 1
 bar_brightness = 256
 bar_contrast = 0
 bar_sharpness = 0
-bar_gamma = 65
+bar_gamma = 85
 bar_denoise = 0
 bar_denoise_param1 = 5
 bar_denoise_param2 = 10
@@ -43,21 +44,13 @@ CONTROL_SYSTEM_HOST = 'localhost'
 CONTROL_SYSTEM_PORT = 12345
 sock = None
 
-""""
-#这个是老的
-def connect_to_control_system():
-    #连接到控制系统 
-    global sock
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((CONTROL_SYSTEM_HOST, CONTROL_SYSTEM_PORT))
-        print(f"成功连接到控制系统: {CONTROL_SYSTEM_HOST}:{CONTROL_SYSTEM_PORT}")
-        return True
-    except Exception as e:
-        print(f"连接控制系统失败: {e}")
-        return False
-        #下面的是新的
-"""""
+# 状态变量
+class_labels_sent = False
+confirmed = False
+class_labels = None
+last_labels_send_time = 0
+
+
 
 
 def connect_to_control_system():
@@ -106,6 +99,73 @@ def send_detection_result(detection_data):
         print(f"发送检测结果失败: {e}")
         sock = None
         return False
+
+
+def send_class_labels(class_labels):
+    """发送类别标签到控制系统"""
+    global sock, class_labels_sent
+    try:
+        if sock is None:
+            if not connect_to_control_system():
+                return False
+
+        # 构建类别标签消息
+        message = json.dumps({
+            'type': 'class_labels',
+            'labels': class_labels
+        })
+        sock.send((message + '\n').encode())
+        class_labels_sent = True
+        print(f"类别标签已发送: {class_labels}")
+        return True
+    except Exception as e:
+        print(f"发送类别标签失败: {e}")
+        sock = None
+        return False
+
+
+def receive_from_control_system():
+    """从控制系统接收消息，非阻塞模式"""
+    global sock, confirmed
+    if sock is None:
+        return None
+
+    try:
+        # 使用select检查是否有数据可读，超时0秒（非阻塞）
+        ready_to_read, _, _ = select.select([sock], [], [], 0)
+        if not ready_to_read:
+            return None
+
+        # 读取数据（假设消息以换行符结束）
+        data = sock.recv(1024)
+        if not data:
+            # 连接关闭
+            sock = None
+            return None
+
+        # 解码并去除换行符
+        message = data.decode().strip()
+        print(f"收到控制系统的消息: {message}")
+
+        try:
+            # 尝试解析JSON消息
+            msg_dict = json.loads(message)
+            # 检查是否为确认消息
+            if (msg_dict.get('type') == 'confirmation' and
+                "监测模块已收到所有模式种类信息，请开始发送监测结果" in msg_dict.get('message', '')):
+                confirmed = True
+                print("收到确认消息，开始发送监测结果")
+            # 如果是其他类型的消息，可以根据需要处理
+        except json.JSONDecodeError:
+            # 如果不是JSON格式，使用旧的检查方式（兼容性）
+            if "监测模块已收到所有模式种类信息，请开始发送监测结果" in message:
+                confirmed = True
+                print("收到确认消息，开始发送监测结果")
+
+        return message
+    except Exception as e:
+        # 非阻塞读取时可能产生的异常忽略
+        return None
 
 
 def apply_adjustment(frame):
@@ -332,6 +392,7 @@ def main():
     global bar_edge, bar_threshold, bar_thresh_value, target_fps
     global bar_noise_removal, bar_noise_kernel, bar_noise_iter, bar_noise_min_area
     global auto_save_enabled, auto_save_interval, last_save_time, max_quality_mode
+    global class_labels, class_labels_sent, confirmed, last_labels_send_time
 
     # 连接到控制系统
     print("正在连接到控制系统...")
@@ -341,10 +402,23 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"使用设备: {device}")
 
-    # 加载训练好的模型
+    # 加载训练好的模型D:\pycharmdededework\yolov11v12v13\eight\runs\V11train\twowan\wan_yolov11n.yaml2\weights\best.pt
     model = YOLO(
-        r'D:\pycharmdededework\yolov11v12v13\eight\runs\V11train\twowan\wan_yolov11n.yaml2\weights\best.pt').to(device)
+        r'E:\project_from_pycharm\self_control_newv1\a_monitoring\pt_from\wan\best.pt').to(device)
     model.conf = 0.5
+
+    print(f"类别数量: {len(model.names)}")
+    print(f"类别标签: {model.names}")
+
+    # 将类别标签保存到全局变量并按ID排序
+    class_labels = [model.names[i] for i in sorted(model.names.keys())]
+    print(f"排序后的类别标签: {class_labels}")
+
+    # 发送类别标签到控制系统
+    if not send_class_labels(class_labels):
+        print("警告: 类别标签发送失败，将继续尝试")
+    else:
+        print("类别标签已成功发送，等待确认...")
 
     # 设置USB摄像头
     cap = cv2.VideoCapture(camera_no, cv2.CAP_DSHOW)
@@ -405,6 +479,16 @@ def main():
     clean_adjusted_frame = None
 
     while True:
+        # 接收控制系统的消息
+        receive_from_control_system()
+
+        # 如果尚未收到确认，定期重发类别标签（每秒一次）
+        if not confirmed and class_labels is not None:
+            current_time = time.time()
+            if current_time - last_labels_send_time > 1.0:  # 1秒间隔
+                if send_class_labels(class_labels):
+                    last_labels_send_time = current_time
+
         target_fps = cv2.getTrackbarPos("Target FPS", "Basic Adjustment")
 
         if target_fps == 0:
@@ -470,8 +554,21 @@ def main():
             print(f"推理错误: {e}")
             continue
 
-        # 处理检测结果并发送到控制系统
-        detected_mode, confidence = process_detection_results(results, model)
+        # 处理检测结果并发送到控制系统（仅在收到确认后发送）
+        if confirmed:
+            detected_mode, confidence = process_detection_results(results, model)
+        else:
+            detected_mode, confidence = None, 0.0
+            # 未确认时，不发送检测结果，但可以显示本地检测结果
+            if results[0].boxes is not None and len(results[0].boxes) > 0:
+                boxes = results[0].boxes.xyxy.cpu().numpy()
+                confidences = results[0].boxes.conf.cpu().numpy()
+                class_ids = results[0].boxes.cls.cpu().numpy().astype(int)
+                max_conf_idx = np.argmax(confidences)
+                best_class_id = class_ids[max_conf_idx]
+                best_confidence = confidences[max_conf_idx]
+                best_class_name = model.names[best_class_id]
+                detected_mode, confidence = best_class_name, best_confidence
 
         # 创建带注释的帧用于显示
         annotated_frame = clean_adjusted_frame.copy()
